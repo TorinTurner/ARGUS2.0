@@ -442,6 +442,9 @@ def list_templates():
 
 def main():
     """Main CLI entry point"""
+    # Ensure templates directory exists (especially important for portable exe)
+    os.makedirs('./templates', exist_ok=True)
+
     if len(sys.argv) < 2:
         print(json.dumps({
             'status': 'error',
