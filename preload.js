@@ -18,7 +18,8 @@ contextBridge.exposeInMainWorld('argus', {
   saveTempMessage: (text) => ipcRenderer.invoke('save-temp-message', text),
   
   // Utilities
-  getUserDataPath: () => ipcRenderer.invoke('get-user-data-path')
+  getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
+  checkPythonDependencies: () => ipcRenderer.invoke('check-python-dependencies')
 });
 
 console.log('Preload script loaded - argus API exposed');

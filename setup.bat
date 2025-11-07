@@ -1,10 +1,15 @@
 @echo off
-REM ARGUS Modern - Quick Setup Script for Windows
-REM Run this to get started TONIGHT
+REM ARGUS - Development Environment Setup
+REM This is for DEVELOPMENT only, not for end users
+REM End users should use the portable .exe (no setup required)
 
 echo =========================================
-echo   ARGUS Modern - Setup
+echo   ARGUS - Development Setup
 echo =========================================
+echo.
+echo NOTE: This is for development only.
+echo For deployment, see BUILD.md to create
+echo a portable .exe that requires NO setup.
 echo.
 
 REM Check Node.js

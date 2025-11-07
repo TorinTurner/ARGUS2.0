@@ -8,10 +8,60 @@ const state = {
   shoreSelectedTemplate: null,
   submarineFile: null,
   submarineFilePath: null,
-  templates: []
+  templates: [],
+  pythonAvailable: false
 };
 
+async function checkPythonSetup() {
+  try {
+    const result = await window.argus.checkPythonDependencies();
+
+    if (result.success) {
+      state.pythonAvailable = true;
+      console.log('Python dependencies OK:', result.data.version);
+    } else {
+      state.pythonAvailable = false;
+      showPythonSetupDialog(result.error);
+    }
+  } catch (error) {
+    state.pythonAvailable = false;
+    showPythonSetupDialog({
+      missing: 'unknown',
+      message: 'Unable to check Python dependencies.\n\nPlease ensure Python 3.8+ is installed and required packages are available.'
+    });
+  }
+}
+
+function showPythonSetupDialog(errorInfo) {
+  const dialogHtml = `
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);
+                display: flex; align-items: center; justify-content: center; z-index: 10000;">
+      <div style="background: #1a1a1a; border: 2px solid #dc3545; border-radius: 8px; padding: 30px;
+                  max-width: 600px; color: #fff;">
+        <h2 style="color: #dc3545; margin-top: 0;">⚠️ Python Setup Required</h2>
+        <p style="white-space: pre-line; line-height: 1.6;">${errorInfo.message}</p>
+        <div style="margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 4px; border-left: 3px solid #ffc107;">
+          <strong>Quick Fix:</strong><br><br>
+          1. Install Python 3.8+ from <a href="#" onclick="alert('Visit https://python.org/')" style="color: #4a9eff;">https://python.org/</a><br>
+          2. Run in terminal: <code style="background: #000; padding: 2px 6px; border-radius: 3px;">python -m pip install opencv-python numpy Pillow imageio pyyaml</code><br>
+          3. Restart ARGUS
+        </div>
+        <button onclick="this.closest('div').parentElement.remove()"
+                style="margin-top: 20px; padding: 10px 20px; background: #dc3545; color: white;
+                       border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+          Continue (Limited Functionality)
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', dialogHtml);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check Python dependencies first
+  await checkPythonSetup();
+
   await loadTemplates();
   setupModeToggle();
   setupShoreMode();
@@ -140,9 +190,15 @@ function clearShoreFile() {
 }
 
 async function generateVLFMessage() {
+  // Check Python availability
+  if (!state.pythonAvailable) {
+    alert('Python dependencies are not available.\n\nPlease install Python 3.8+ and required packages:\npython -m pip install opencv-python numpy Pillow imageio pyyaml\n\nThen restart ARGUS.');
+    return;
+  }
+
   const dtg = document.getElementById('shore-dtg').value.trim();
   if (!dtg) return alert('Please enter a DTG');
-  
+
   const prog = document.getElementById('shore-progress');
   const fill = document.getElementById('shore-progress-fill');
   const text = document.getElementById('shore-progress-text');
@@ -258,9 +314,15 @@ function updateSubDecodeButton() {
 }
 
 async function decodeVLFMessage() {
+  // Check Python availability
+  if (!state.pythonAvailable) {
+    alert('Python dependencies are not available.\n\nPlease install Python 3.8+ and required packages:\npython -m pip install opencv-python numpy Pillow imageio pyyaml\n\nThen restart ARGUS.');
+    return;
+  }
+
   const template = document.getElementById('sub-template').value;
   const fileMode = document.getElementById('sub-file-mode-btn').classList.contains('active');
-  
+
   let messagePath;
   if (fileMode) {
     messagePath = state.submarineFilePath;

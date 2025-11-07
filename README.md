@@ -153,26 +153,56 @@ argus-modern-build/
 
 ## 📦 Building for Distribution
 
-### Create Portable Executable
+### ⚠️ IMPORTANT: Portable .exe Requirements
 
+The portable .exe is **truly self-contained** and works on **bare Windows systems with NO dependencies**.
+
+### Build Steps
+
+**1. Install Build Tools (one-time setup):**
 ```bash
-npm run package-portable
+# Install Node.js dependencies
+npm install
+
+# Install Python dependencies (for building only)
+cd python
+pip install -r requirements.txt
+cd ..
 ```
 
-**Output:** `release/ARGUS-Portable.exe` (~120 MB)
+**2. Build Python Standalone Executable:**
+```bash
+build-python.bat
+```
+This creates `python-dist/ARGUS_core.exe` (~100-120MB) with Python + all packages bundled.
 
-This creates a single .exe file that can be:
-- Copied to USB drive
-- Burned to CD
-- Placed on network share
-- Run on any Windows machine without installation
+**3. Build Electron Portable Package:**
+```bash
+npm run dist-win-portable
+```
+
+**Output:** `dist/ARGUS-{version}-{arch}-portable.exe` (~150-200MB)
+
+**📖 See [BUILD.md](BUILD.md) for detailed build instructions**
 
 ### What Gets Bundled:
 - ✅ Electron runtime
-- ✅ Python interpreter
-- ✅ All Python packages
+- ✅ Python interpreter (embedded, no installation required)
+- ✅ All Python packages (opencv, numpy, imageio, etc.)
 - ✅ UI files
-- ✅ Templates (in AppData on first run)
+- ✅ Templates
+- ✅ Everything needed to run on any Windows machine
+
+### Distribution
+
+This portable .exe can be:
+- ✅ Copied to USB drive
+- ✅ Burned to CD
+- ✅ Placed on network share
+- ✅ Run on **any Windows 7/10/11 machine**
+- ✅ **No Python, Node.js, or any dependencies required**
+
+Just copy and run!
 
 ---
 

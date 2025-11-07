@@ -8,9 +8,11 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "dist-win": "electron-builder --win",
-    "dist-win-x64": "electron-builder --win --x64",
-    "dist-win-arm64": "electron-builder --win --arm64",
+    "build-python": "cd python && pyinstaller ARGUS_core.spec --clean && cd .. && if not exist python-dist mkdir python-dist && copy python\\dist\\ARGUS_core.exe python-dist\\",
+    "dist-win": "npm run build-python && electron-builder --win",
+    "dist-win-x64": "npm run build-python && electron-builder --win --x64",
+    "dist-win-arm64": "npm run build-python && electron-builder --win --arm64",
+    "dist-win-portable": "npm run build-python && electron-builder --win portable",
     "dist-mac": "electron-builder --mac"
   },
   "devDependencies": {
@@ -28,12 +30,14 @@
       "preload.js",
       "renderer/**/*",
       "python/**/*",
+      "python-dist/**/*",
       "templates/**/*",
       "package.json"
     ],
     "asar": true,
     "asarUnpack": [
       "python/**/*",
+      "python-dist/**/*",
       "templates/**/*"
     ],
     "mac": {
