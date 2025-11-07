@@ -39,13 +39,15 @@
       "python/**/*",
       "python-dist/**/*",
       "templates/**/*",
+      "ARGUS_core*",
       "package.json"
     ],
     "asar": true,
     "asarUnpack": [
       "python/**/*",
       "python-dist/**/*",
-      "templates/**/*"
+      "templates/**/*",
+      "ARGUS_core*"
     ],
     "mac": {
       "category": "public.app-category.utilities",

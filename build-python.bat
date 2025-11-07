@@ -53,12 +53,17 @@ echo [4/4] Preparing for Electron bundling...
 if not exist "python-dist" mkdir python-dist
 copy python\dist\ARGUS_core.exe python-dist\ >nul
 
+REM Also copy to root level for proper DLL extraction
+REM This allows runtime_tmpdir='.' to extract DLLs next to ARGUS.exe
+copy python\dist\ARGUS_core.exe ARGUS_core.exe >nul
+
 echo.
 echo =========================================
 echo   Python Executable Built Successfully!
 echo =========================================
 echo.
-echo Location: python-dist\ARGUS_core.exe
+echo Location: python-dist\ARGUS_core.exe (legacy)
+echo Location: ARGUS_core.exe (root level - for DLL extraction)
 echo Size:
 dir python-dist\ARGUS_core.exe | find "ARGUS_core.exe"
 echo.

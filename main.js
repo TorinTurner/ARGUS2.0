@@ -41,6 +41,7 @@ function getExeDir() {
 
 // Python executable path
 function getPythonPath() {
+  const exeDir = getExeDir();
   const appRoot = getAppRootDir();
 
   // In production (packaged app), use bundled Python executable
@@ -48,15 +49,24 @@ function getPythonPath() {
     // Check for platform-specific executable names
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
-    const bundledPython = path.join(appRoot, 'python-dist', exeName);
 
+    // Try root level first (same directory as ARGUS.exe)
+    // This allows runtime_tmpdir='.' to work properly for DLL extraction
+    const rootLevelPython = path.join(exeDir, exeName);
+    if (fs.existsSync(rootLevelPython)) {
+      console.log('[ARGUS] Using root-level bundled Python executable:', rootLevelPython);
+      return rootLevelPython;
+    }
+
+    // Fallback: Check python-dist subdirectory (old location)
+    const bundledPython = path.join(appRoot, 'python-dist', exeName);
     if (fs.existsSync(bundledPython)) {
       console.log('[ARGUS] Using bundled Python executable:', bundledPython);
       return bundledPython;
-    } else {
-      console.error('[ARGUS] ERROR: Bundled Python executable not found at:', bundledPython);
-      console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
     }
+
+    console.error('[ARGUS] ERROR: Bundled Python executable not found at:', rootLevelPython, 'or', bundledPython);
+    console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
   }
 
   // In development, use system Python

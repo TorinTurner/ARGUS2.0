@@ -201,12 +201,17 @@ DOCKERFILE
         mkdir -p python-dist
         cp python/dist/ARGUS_core.exe python-dist/
 
+        # Also copy to root level for proper DLL extraction
+        # This allows runtime_tmpdir='.' to extract DLLs next to ARGUS.exe
+        cp python/dist/ARGUS_core.exe ARGUS_core.exe
+
         echo ""
         echo "========================================="
         echo "  Windows .exe Built Successfully!"
         echo "========================================="
         echo ""
-        echo "Location: python-dist/ARGUS_core.exe"
+        echo "Location: python-dist/ARGUS_core.exe (legacy)"
+        echo "Location: ARGUS_core.exe (root level - for DLL extraction)"
         echo "Size:"
         ls -lh python-dist/ARGUS_core.exe | awk '{print $5 " " $9}'
         echo ""
