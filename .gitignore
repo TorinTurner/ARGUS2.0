@@ -18,6 +18,9 @@ __pycache__
 # PyInstaller spec generated files
 *.spec.backup
 
+# PyInstaller DLL extraction directory
+/_internal
+
 # Output directory (user-generated files)
 /output
 
