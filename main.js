@@ -97,9 +97,10 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Open DevTools for debugging (even in packaged app for now)
-  // TEMPORARY: Remove this after debugging is complete
-  mainWindow.webContents.openDevTools();
+  // Open DevTools only in development
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
