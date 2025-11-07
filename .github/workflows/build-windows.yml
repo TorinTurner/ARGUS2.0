@@ -43,9 +43,9 @@ jobs:
 
       - name: Create python-dist directory and copy onedir build
         run: |
-          if exist python-dist rmdir /s /q python-dist
-          mkdir python-dist
-          xcopy python\dist\ARGUS_core python-dist\ARGUS_core\ /E /I /Q
+          if (Test-Path python-dist) { Remove-Item python-dist -Recurse -Force }
+          New-Item -ItemType Directory -Path python-dist -Force
+          Copy-Item -Path python\dist\ARGUS_core -Destination python-dist\ARGUS_core -Recurse -Force
 
       - name: Upload Python executable artifact
         uses: actions/upload-artifact@v4
