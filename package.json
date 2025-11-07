@@ -11,13 +11,12 @@
     "build-python:win": "build-python.bat",
     "build-python:unix": "bash build-python.sh",
     "build-python:win-cross": "bash build-python-win.sh",
-    "dist-win": "npm run build-python:win && electron-builder --win",
-    "dist-win-x64": "npm run build-python:win && electron-builder --win --x64",
-    "dist-win-arm64": "npm run build-python:win && electron-builder --win --arm64",
-    "dist-win-portable": "npm run build-python:win && electron-builder --win portable",
-    "dist-win-from-mac": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=portable",
-    "dist-win-from-mac-x64": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=portable",
-    "dist-win-from-mac-arm64": "npm run build-python:win-cross && electron-builder --win --arm64 --config.win.target=portable",
+    "dist-win": "npm run build-python:win && electron-builder --win --config.win.target=nsis",
+    "dist-win-x64": "npm run build-python:win && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-arm64": "npm run build-python:win && electron-builder --win --arm64 --config.win.target=nsis",
+    "dist-win-from-mac": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-from-mac-x64": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-from-mac-arm64": "npm run build-python:win-cross && electron-builder --win --arm64 --config.win.target=nsis",
     "dist-mac": "npm run build-python:unix && electron-builder --mac",
     "dist-mac-universal": "npm run build-python:unix && electron-builder --mac --universal",
     "dist-linux": "npm run build-python:unix && electron-builder --linux"
@@ -37,18 +36,21 @@
       "preload.js",
       "settings.js",
       "renderer/**/*",
-      "python/**/*",
       "python-dist/**/*",
       "templates/**/*",
-      "ARGUS_core*",
       "package.json"
     ],
     "asar": true,
     "asarUnpack": [
-      "python/**/*",
       "python-dist/**/*",
-      "templates/**/*",
-      "ARGUS_core*"
+      "templates/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-dist/ARGUS_core",
+        "to": "python",
+        "filter": ["**/*"]
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities",
@@ -72,18 +74,10 @@
       ]
     },
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64", "arm64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64", "arm64"]
-        }
-      ],
+      "target": "nsis",
       "requestedExecutionLevel": "asInvoker",
-      "signingHashAlgorithms": ["sha256"]
+      "signingHashAlgorithms": ["sha256"],
+      "icon": null
     },
     "nsis": {
       "oneClick": false,
@@ -92,13 +86,16 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "runAfterFinish": false,
-      "differentialPackage": false
-    },
-    "portable": {
-      "artifactName": "${productName}-${version}-${arch}-portable.${ext}",
-      "requestExecutionLevel": "user",
-      "unpackDirName": "ARGUS"
+      "runAfterFinish": true,
+      "differentialPackage": false,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "installerIcon": null,
+      "uninstallerIcon": null,
+      "license": null,
+      "include": "build/installer.nsh",
+      "warningsAsErrors": false,
+      "unicode": true,
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "target": "AppImage",

@@ -43,111 +43,61 @@ function getExeDir() {
 
 // Python executable path
 function getPythonPath() {
-  const exeDir = getExeDir();
-  const appRoot = getAppRootDir();
-
-  // In production (packaged app), use bundled Python executable
+  // In production (packaged app), use installed Python executable
   if (app.isPackaged) {
     // Check for platform-specific executable names
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
 
-    // Target: Python exe at root level (same dir as ARGUS.exe)
-    // CRITICAL: PyInstaller's runtime_tmpdir='.' extracts DLLs relative to exe location
-    // By placing it next to ARGUS.exe, DLLs extract to user-writable directory
-    const targetPython = path.join(exeDir, exeName);
+    // Python is installed in resources/python/ directory
+    // This is set up by electron-builder's extraResources config
+    const resourcesPath = process.resourcesPath;
+    const pythonPath = path.join(resourcesPath, 'python', exeName);
 
-    // Check if we already have it at root level
-    if (fs.existsSync(targetPython)) {
-      console.log('[ARGUS] Using root-level Python executable:', targetPython);
-      return targetPython;
-    }
+    console.log('[ARGUS] Looking for installed Python executable');
+    console.log('[ARGUS] Resources path:', resourcesPath);
+    console.log('[ARGUS] Python path:', pythonPath);
 
-    // Python exe not at root yet - need to copy it from bundled location
-    console.log('[ARGUS] Python exe not found at root, searching bundle...');
+    if (fs.existsSync(pythonPath)) {
+      console.log('[ARGUS] ✓ Found Python executable at:', pythonPath);
+      console.log('[ARGUS] Process architecture:', process.arch);
+      console.log('[ARGUS] Install directory:', path.dirname(resourcesPath));
 
-    // Find source: Check multiple possible bundle locations
-    let sourcePython = null;
-    const possibleLocations = [
-      path.join(appRoot, exeName),                    // Root of unpacked
-      path.join(appRoot, 'python-dist', exeName),     // python-dist subdirectory
-      path.join(path.dirname(appRoot), exeName)       // One level up
-    ];
+      // Verify the _internal directory exists (contains all DLLs)
+      const internalDir = path.join(resourcesPath, 'python', '_internal');
+      if (fs.existsSync(internalDir)) {
+        console.log('[ARGUS] ✓ Python _internal directory found with DLLs');
+        const files = fs.readdirSync(internalDir);
+        console.log('[ARGUS] ✓ Found', files.length, 'files in _internal directory');
 
-    console.log('[ARGUS] Searching for bundled Python in:', possibleLocations);
+        // Check for critical DLLs
+        const python311dll = path.join(internalDir, 'python311.dll');
+        const vcruntime = path.join(internalDir, 'vcruntime140.dll');
 
-    for (const location of possibleLocations) {
-      console.log('[ARGUS]   Checking:', location);
-      if (fs.existsSync(location)) {
-        sourcePython = location;
-        console.log('[ARGUS]   ✓ Found bundled Python at:', sourcePython);
-        break;
+        if (fs.existsSync(python311dll)) {
+          const stats = fs.statSync(python311dll);
+          console.log('[ARGUS] ✓ python311.dll found, size:', stats.size, 'bytes');
+        } else {
+          console.error('[ARGUS] ✗ python311.dll NOT FOUND at:', python311dll);
+        }
+
+        if (fs.existsSync(vcruntime)) {
+          console.log('[ARGUS] ✓ vcruntime140.dll found');
+        } else {
+          console.warn('[ARGUS] ✗ vcruntime140.dll NOT FOUND - VC++ Redistributable may be missing');
+        }
       } else {
-        console.log('[ARGUS]   ✗ Not found');
+        console.warn('[ARGUS] WARNING: Python _internal directory not found');
+        console.warn('[ARGUS] Expected at:', internalDir);
       }
-    }
 
-    if (!sourcePython) {
-      console.error('[ARGUS] CRITICAL ERROR: Bundled Python executable not found!');
-      console.error('[ARGUS] Searched locations:', possibleLocations);
-      console.error('[ARGUS] App root:', appRoot);
-      console.error('[ARGUS] Exe dir:', exeDir);
+      return pythonPath;
+    } else {
+      console.error('[ARGUS] CRITICAL ERROR: Python executable not found!');
+      console.error('[ARGUS] Expected at:', pythonPath);
+      console.error('[ARGUS] Resources path:', resourcesPath);
+      console.error('[ARGUS] This indicates the installer did not install Python correctly');
       return null;
-    }
-
-    // Verify target directory is writable before attempting copy
-    try {
-      console.log('[ARGUS] Verifying target directory is writable:', exeDir);
-      const testFile = path.join(exeDir, '.argus-write-test');
-      fs.writeFileSync(testFile, 'test');
-      fs.unlinkSync(testFile);
-      console.log('[ARGUS] ✓ Target directory is writable');
-    } catch (error) {
-      console.error('[ARGUS] ERROR: Target directory is not writable:', error.message);
-      console.error('[ARGUS] Cannot copy Python exe to:', targetPython);
-      console.error('[ARGUS] This will likely cause DLL loading errors');
-      return null;  // Return null to trigger error dialog
-    }
-
-    // Copy Python exe to root level (next to ARGUS.exe)
-    // This ensures PyInstaller extracts DLLs to exe directory, not temp
-    try {
-      console.log('[ARGUS] Copying Python exe from bundle to root...');
-      console.log('[ARGUS]   Source:', sourcePython);
-      console.log('[ARGUS]   Source size:', fs.statSync(sourcePython).size, 'bytes');
-      console.log('[ARGUS]   Target:', targetPython);
-      console.log('[ARGUS]   Target dir:', exeDir);
-
-      fs.copyFileSync(sourcePython, targetPython);
-
-      // Verify the copy succeeded
-      if (!fs.existsSync(targetPython)) {
-        throw new Error('Copy completed but target file does not exist');
-      }
-
-      const targetSize = fs.statSync(targetPython).size;
-      const sourceSize = fs.statSync(sourcePython).size;
-
-      if (targetSize !== sourceSize) {
-        throw new Error(`Copy size mismatch: source ${sourceSize} bytes, target ${targetSize} bytes`);
-      }
-
-      console.log('[ARGUS]   Target size:', targetSize, 'bytes');
-
-      // On Unix systems, preserve executable permission
-      if (process.platform !== 'win32') {
-        console.log('[ARGUS] Setting executable permissions on Unix...');
-        fs.chmodSync(targetPython, 0o755);
-      }
-
-      console.log('[ARGUS] ✓ Python exe copied successfully to root level');
-      console.log('[ARGUS] ✓ DLLs will now extract to:', exeDir);
-      return targetPython;
-    } catch (error) {
-      console.error('[ARGUS] ERROR copying Python exe:', error.message);
-      console.error('[ARGUS] Error details:', error);
-      console.error('[ARGUS] This is a critical error that will prevent the app from working');
-      return null;  // Return null to trigger error dialog instead of silent fallback
     }
   }
 
@@ -326,7 +276,6 @@ function ensureDirectories() {
   try {
     const appRoot = getAppRootDir();
     const bundledTemplatesDir = path.join(appRoot, 'templates');
-    const exeDir = getExeDir();
 
     console.log('[ARGUS] App root directory:', appRoot);
     console.log('[ARGUS] Bundled templates directory:', bundledTemplatesDir);
@@ -342,26 +291,6 @@ function ensureDirectories() {
     if (!fs.existsSync(userSettings.outputDir)) {
       console.log('[ARGUS] Creating output directory...');
       fs.mkdirSync(userSettings.outputDir, { recursive: true });
-    }
-
-    // Create _internal directory for PyInstaller DLL extraction (portable exe only)
-    if (app.isPackaged) {
-      const internalDir = path.join(exeDir, '_internal');
-      if (!fs.existsSync(internalDir)) {
-        console.log('[ARGUS] Creating _internal directory for Python DLLs...');
-        fs.mkdirSync(internalDir, { recursive: true });
-      }
-
-      // Verify it's writable
-      try {
-        const testFile = path.join(internalDir, '.write-test');
-        fs.writeFileSync(testFile, 'test');
-        fs.unlinkSync(testFile);
-        console.log('[ARGUS] ✓ _internal directory is writable');
-      } catch (error) {
-        console.error('[ARGUS] WARNING: _internal directory is not writable:', error.message);
-        console.error('[ARGUS] This may cause DLL extraction to fail');
-      }
     }
 
     // Check bundled templates exist (these come with the app)
@@ -383,33 +312,17 @@ function ensureDirectories() {
  */
 async function verifyPythonExecutable(pythonPath) {
   return new Promise((resolve) => {
-    console.log('[ARGUS] Verifying Python executable and DLL loading...');
+    console.log('[ARGUS] Verifying Python executable...');
+    console.log('[ARGUS] Python path:', pythonPath);
 
-    const exeDir = getExeDir();
-    const internalDir = path.join(exeDir, '_internal');
-
-    console.log('[ARGUS] Verification working directory:', exeDir);
-    console.log('[ARGUS] DLL extraction target:', internalDir);
-
-    // Ensure _internal directory exists for DLL extraction
-    if (!fs.existsSync(internalDir)) {
-      console.log('[ARGUS] Creating _internal directory for verification...');
-      try {
-        fs.mkdirSync(internalDir, { recursive: true });
-      } catch (error) {
-        console.error('[ARGUS] Failed to create _internal directory:', error.message);
-      }
-    }
+    // Get the directory containing the Python exe for working directory
+    const pythonDir = path.dirname(pythonPath);
+    console.log('[ARGUS] Python directory:', pythonDir);
 
     const testProcess = spawn(pythonPath, ['--version'], {
-      cwd: exeDir,  // Same working directory used for actual operations
+      cwd: pythonDir,  // Run in Python's directory so DLLs can be found
       timeout: 5000,  // 5 second timeout
-      env: {
-        ...process.env,
-        // Set temp directories to _internal to force DLL extraction there
-        TEMP: process.platform === 'win32' ? internalDir : process.env.TEMP,
-        TMP: process.platform === 'win32' ? internalDir : process.env.TMP,
-      }
+      env: process.env  // Use default environment
     });
 
     let stdout = '';
@@ -434,18 +347,16 @@ async function verifyPythonExecutable(pythonPath) {
         console.error('[ARGUS] stderr:', stderr);
 
         const { dialog } = require('electron');
-        const internalDirForError = path.join(getExeDir(), '_internal');
         dialog.showErrorBox(
           'Python Runtime Error',
-          'Python executable verification failed. This usually indicates a DLL loading problem.\n\n' +
+          'Python executable verification failed.\n\n' +
           'Error details:\n' + (stderr || stdout || 'Unknown error') + '\n\n' +
           'Troubleshooting:\n' +
-          '1. Ensure the _internal folder is writable:\n   ' + internalDirForError + '\n' +
-          '2. Try running as administrator\n' +
-          '3. Install Visual C++ Redistributable 2015-2022\n' +
-          '4. Check antivirus/firewall settings\n' +
-          '5. Extract to a simpler path (e.g., C:\\ARGUS)\n' +
-          '6. Ensure the folder is not in Program Files or OneDrive'
+          '1. Reinstall ARGUS (the installation may be corrupted)\n' +
+          '2. Install Visual C++ Redistributable 2015-2022\n   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
+          '3. Check antivirus/firewall settings\n' +
+          '4. Try running as administrator\n' +
+          '5. Install to a different location'
         );
         resolve(false);
       }
@@ -455,16 +366,15 @@ async function verifyPythonExecutable(pythonPath) {
       console.error('[ARGUS] ✗ Failed to start Python process:', error.message);
 
       const { dialog } = require('electron');
-      const internalDirForError = path.join(getExeDir(), '_internal');
       dialog.showErrorBox(
         'Python Runtime Error',
         'Failed to start Python executable.\n\n' +
         'Error: ' + error.message + '\n\n' +
         'Troubleshooting:\n' +
-        '1. Ensure the _internal folder is writable:\n   ' + internalDirForError + '\n' +
-        '2. Try running as administrator\n' +
-        '3. Install Visual C++ Redistributable 2015-2022\n' +
-        '4. Check antivirus/firewall settings'
+        '1. Reinstall ARGUS (the installation may be corrupted)\n' +
+        '2. Install Visual C++ Redistributable 2015-2022\n   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
+        '3. Check antivirus/firewall settings\n' +
+        '4. Try running as administrator'
       );
       resolve(false);
     });
@@ -541,14 +451,32 @@ app.whenReady().then(async () => {
   if (app.isPackaged && !pythonPath) {
     console.error('[ARGUS] CRITICAL: Python executable initialization failed');
     const { dialog } = require('electron');
-    dialog.showErrorBox(
-      'ARGUS Initialization Error',
-      'Failed to initialize Python runtime. The application may not work correctly.\n\n' +
-      'Please try:\n' +
-      '1. Running as administrator\n' +
-      '2. Extracting to a folder with write permissions\n' +
-      '3. Reinstalling the application'
-    );
+
+    // Check if installed in wrong Program Files folder (architecture mismatch)
+    const installDir = app.getPath('exe');
+    const isIn32BitFolder = installDir.includes('Program Files (x86)');
+    const arch = process.arch;
+
+    let errorMessage = 'Failed to initialize Python runtime.\n\n';
+
+    if (isIn32BitFolder && arch === 'x64') {
+      errorMessage += '⚠️ ARCHITECTURE MISMATCH DETECTED ⚠️\n\n' +
+        'This 64-bit application is installed in the 32-bit Program Files folder.\n' +
+        'Install location: ' + installDir + '\n\n' +
+        'Please:\n' +
+        '1. Uninstall ARGUS\n' +
+        '2. Reinstall to the correct location (C:\\Program Files\\ARGUS)\n' +
+        '3. Make sure to download the x64 installer\n\n';
+    } else {
+      errorMessage += 'Please try:\n' +
+        '1. Install Visual C++ Redistributable 2015-2022 (x64)\n' +
+        '   Download: https://aka.ms/vs/17/release/vc_redist.x64.exe\n\n' +
+        '2. Run ARGUS as administrator\n\n' +
+        '3. Reinstall ARGUS\n\n' +
+        '4. Check antivirus is not blocking Python DLLs\n\n';
+    }
+
+    dialog.showErrorBox('ARGUS Initialization Error', errorMessage);
   } else if (pythonPath) {
     console.log('[ARGUS] ✓ Python executable ready at:', pythonPath);
 
@@ -725,43 +653,23 @@ function executePython(command, args) {
       }
     }
 
-    // Use exe directory as working directory for:
-    // 1. Python DLL extraction (runtime_tmpdir='_internal' in spec file)
-    //    PyInstaller will create C:\ARGUS\_internal\_MEIxxxxxx\ for DLL extraction
-    // 2. Template and output file access
+    // Use exe directory as working directory for template and output file access
     const exeDir = getExeDir();
     const workDir = exeDir;
-    const internalDir = path.join(exeDir, '_internal');
 
     console.log('[ARGUS] Executing Python command:', command);
     console.log('[ARGUS] Spawn command:', spawnCommand);
     console.log('[ARGUS] Spawn args:', spawnArgs);
     console.log('[ARGUS] Working directory:', workDir);
-    console.log('[ARGUS] DLL extraction target:', internalDir);
-
-    // Verify _internal directory exists and is writable (for packaged builds)
-    if (app.isPackaged && !fs.existsSync(internalDir)) {
-      console.error('[ARGUS] ERROR: _internal directory does not exist:', internalDir);
-      console.error('[ARGUS] This will cause DLL extraction to fail');
-      console.error('[ARGUS] Creating directory now...');
-      try {
-        fs.mkdirSync(internalDir, { recursive: true });
-      } catch (error) {
-        console.error('[ARGUS] Failed to create _internal directory:', error.message);
-      }
-    }
 
     const pythonProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: workDir,  // Set working directory to exe directory (for DLL extraction to _internal subdirectory)
+      cwd: workDir,  // Set working directory to exe directory
       env: {
         ...process.env,
         // Pass user-configured directories to Python
         ARGUS_USER_TEMPLATES: userSettings.templatesDir,
         ARGUS_BUNDLED_TEMPLATES: path.join(appRoot, 'templates'),
-        ARGUS_OUTPUT_DIR: userSettings.outputDir,
-        // Help PyInstaller find extraction directory (though runtime_tmpdir in spec should handle this)
-        TEMP: process.platform === 'win32' ? internalDir : process.env.TEMP,
-        TMP: process.platform === 'win32' ? internalDir : process.env.TMP,
+        ARGUS_OUTPUT_DIR: userSettings.outputDir
       }
     });
 
