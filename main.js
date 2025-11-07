@@ -2,8 +2,10 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const settings = require('./settings');
 
 let mainWindow = null;
+let userSettings = null;
 
 // Get app root directory (where the executable/app is located)
 function getAppRootDir() {
@@ -50,23 +52,64 @@ function getPythonPath() {
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
 
-    // Try root level first (same directory as ARGUS.exe)
-    // This allows runtime_tmpdir='.' to work properly for DLL extraction
-    const rootLevelPython = path.join(exeDir, exeName);
-    if (fs.existsSync(rootLevelPython)) {
-      console.log('[ARGUS] Using root-level bundled Python executable:', rootLevelPython);
-      return rootLevelPython;
+    // Target: Python exe at root level (same dir as ARGUS.exe)
+    // CRITICAL: PyInstaller's runtime_tmpdir='.' extracts DLLs relative to exe location
+    // By placing it next to ARGUS.exe, DLLs extract to user-writable directory
+    const targetPython = path.join(exeDir, exeName);
+
+    // Check if we already have it at root level
+    if (fs.existsSync(targetPython)) {
+      console.log('[ARGUS] Using root-level Python executable:', targetPython);
+      return targetPython;
     }
 
-    // Fallback: Check python-dist subdirectory (old location)
-    const bundledPython = path.join(appRoot, 'python-dist', exeName);
-    if (fs.existsSync(bundledPython)) {
-      console.log('[ARGUS] Using bundled Python executable:', bundledPython);
-      return bundledPython;
+    // Python exe not at root yet - need to copy it from bundled location
+    console.log('[ARGUS] Python exe not found at root, searching bundle...');
+
+    // Find source: Check multiple possible bundle locations
+    let sourcePython = null;
+    const possibleLocations = [
+      path.join(appRoot, exeName),                    // Root of unpacked
+      path.join(appRoot, 'python-dist', exeName),     // python-dist subdirectory
+      path.join(path.dirname(appRoot), exeName)       // One level up
+    ];
+
+    for (const location of possibleLocations) {
+      if (fs.existsSync(location)) {
+        sourcePython = location;
+        console.log('[ARGUS] Found bundled Python at:', sourcePython);
+        break;
+      }
     }
 
-    console.error('[ARGUS] ERROR: Bundled Python executable not found at:', rootLevelPython, 'or', bundledPython);
-    console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
+    if (!sourcePython) {
+      console.error('[ARGUS] CRITICAL ERROR: Bundled Python executable not found!');
+      console.error('[ARGUS] Searched locations:', possibleLocations);
+      return null;
+    }
+
+    // Copy Python exe to root level (next to ARGUS.exe)
+    // This ensures PyInstaller extracts DLLs to exe directory, not temp
+    try {
+      console.log('[ARGUS] Copying Python exe from bundle to root...');
+      console.log('[ARGUS]   Source:', sourcePython);
+      console.log('[ARGUS]   Target:', targetPython);
+
+      fs.copyFileSync(sourcePython, targetPython);
+
+      // On Unix systems, preserve executable permission
+      if (process.platform !== 'win32') {
+        fs.chmodSync(targetPython, 0o755);
+      }
+
+      console.log('[ARGUS] ✓ Python exe copied successfully to root level');
+      console.log('[ARGUS] DLLs will now extract to:', exeDir);
+      return targetPython;
+    } catch (error) {
+      console.error('[ARGUS] ERROR copying Python exe:', error.message);
+      console.error('[ARGUS] Falling back to bundled location (may cause DLL errors)');
+      return sourcePython;
+    }
   }
 
   // In development, use system Python
@@ -77,44 +120,199 @@ function getPythonPath() {
   return 'python'; // Windows
 }
 
-// Ensure directories exist in app root
+// Show first-run setup dialog
+async function showSetupDialog() {
+  const exeDir = getExeDir();
+  const defaultSettings = settings.getDefaultSettings(exeDir);
+
+  return new Promise((resolve) => {
+    const setupWindow = new BrowserWindow({
+      width: 600,
+      height: 400,
+      modal: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+
+    // Create a simple HTML for the setup dialog
+    const setupHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ARGUS Setup</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 30px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; font-size: 24px; margin-bottom: 10px; }
+    p { color: #666; margin-bottom: 30px; }
+    .option {
+      background: white;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 2px solid #ddd;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .option:hover { border-color: #4CAF50; }
+    .option.selected { border-color: #4CAF50; background: #f0f8f0; }
+    .option h3 { margin: 0 0 8px 0; color: #333; }
+    .option p { margin: 0; font-size: 14px; color: #666; }
+    .path {
+      font-family: monospace;
+      background: #f5f5f5;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      display: block;
+      font-size: 12px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+    }
+    button:hover { background: #45a049; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>Welcome to ARGUS</h1>
+  <p>Choose where to store your templates and output files:</p>
+
+  <div class="option selected" id="default" onclick="selectOption('default')">
+    <h3>📁 Next to Application (Recommended)</h3>
+    <p>Store files in the same folder as ARGUS.exe for easy access</p>
+    <span class="path">Templates: ${defaultSettings.templatesDir}</span>
+    <span class="path">Output: ${defaultSettings.outputDir}</span>
+  </div>
+
+  <div class="option" id="custom" onclick="selectOption('custom')">
+    <h3>🗂️ Custom Location</h3>
+    <p>Choose your own folders for templates and output</p>
+  </div>
+
+  <button id="continue" onclick="continueSetup()">Continue</button>
+
+  <script>
+    let selectedOption = 'default';
+
+    function selectOption(option) {
+      selectedOption = option;
+      document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+      document.getElementById(option).classList.add('selected');
+    }
+
+    async function continueSetup() {
+      if (selectedOption === 'default') {
+        window.electron.send('setup-complete', { useDefaults: true });
+      } else {
+        window.electron.send('setup-choose-folders');
+      }
+    }
+  </script>
+</body>
+</html>`;
+
+    // Write HTML to temp file and load it
+    const tmpPath = path.join(app.getPath('temp'), 'argus-setup.html');
+    fs.writeFileSync(tmpPath, setupHTML);
+    setupWindow.loadFile(tmpPath);
+
+    // Handle setup completion
+    ipcMain.once('setup-complete', (event, choice) => {
+      let finalSettings;
+
+      if (choice.useDefaults) {
+        finalSettings = defaultSettings;
+      } else {
+        finalSettings = choice.settings;
+      }
+
+      settings.saveSettings(finalSettings);
+      setupWindow.close();
+      resolve(finalSettings);
+    });
+
+    // Handle custom folder selection
+    ipcMain.once('setup-choose-folders', async () => {
+      const templatesDir = await dialog.showOpenDialog(setupWindow, {
+        title: 'Select Templates Folder',
+        defaultPath: defaultSettings.templatesDir,
+        properties: ['openDirectory', 'createDirectory']
+      });
+
+      if (templatesDir.canceled) {
+        return;
+      }
+
+      const outputDir = await dialog.showOpenDialog(setupWindow, {
+        title: 'Select Output Folder',
+        defaultPath: defaultSettings.outputDir,
+        properties: ['openDirectory', 'createDirectory']
+      });
+
+      if (outputDir.canceled) {
+        return;
+      }
+
+      const customSettings = {
+        templatesDir: templatesDir.filePaths[0],
+        outputDir: outputDir.filePaths[0],
+        firstRun: false
+      };
+
+      settings.saveSettings(customSettings);
+      setupWindow.close();
+      resolve(customSettings);
+    });
+  });
+}
+
+// Ensure directories exist based on user settings
 function ensureDirectories() {
   try {
     const appRoot = getAppRootDir();
-    const exeDir = getExeDir();
     const bundledTemplatesDir = path.join(appRoot, 'templates');
-    const userTemplatesDir = path.join(exeDir, 'templates');
-    const outputDir = path.join(exeDir, 'output');
 
     console.log('[ARGUS] App root directory:', appRoot);
-    console.log('[ARGUS] Exe directory:', exeDir);
     console.log('[ARGUS] Bundled templates directory:', bundledTemplatesDir);
-    console.log('[ARGUS] User templates directory:', userTemplatesDir);
-    console.log('[ARGUS] Output directory:', outputDir);
+    console.log('[ARGUS] User templates directory:', userSettings.templatesDir);
+    console.log('[ARGUS] Output directory:', userSettings.outputDir);
 
-    // Create output directory next to exe for easy access
-    if (!fs.existsSync(outputDir)) {
-      console.log('[ARGUS] Creating output directory...');
-      fs.mkdirSync(outputDir, { recursive: true });
+    // Create user directories
+    if (!fs.existsSync(userSettings.templatesDir)) {
+      console.log('[ARGUS] Creating templates directory...');
+      fs.mkdirSync(userSettings.templatesDir, { recursive: true });
     }
 
-    // Create user templates directory next to exe if it doesn't exist
-    if (!fs.existsSync(userTemplatesDir)) {
-      console.log('[ARGUS] Creating user templates directory...');
-      fs.mkdirSync(userTemplatesDir, { recursive: true });
+    if (!fs.existsSync(userSettings.outputDir)) {
+      console.log('[ARGUS] Creating output directory...');
+      fs.mkdirSync(userSettings.outputDir, { recursive: true });
     }
 
     // Check bundled templates exist (these come with the app)
     if (!fs.existsSync(bundledTemplatesDir)) {
       console.warn('[ARGUS] WARNING: Bundled templates directory not found at:', bundledTemplatesDir);
       console.warn('[ARGUS] This likely means the app was not packaged correctly.');
-      console.warn('[ARGUS] Check that asarUnpack includes "templates/**/*"');
     }
 
-    console.log('[ARGUS] Template search order: 1) User templates (next to exe), 2) Bundled templates');
+    console.log('[ARGUS] Template search order: 1) User templates, 2) Bundled templates');
   } catch (error) {
     console.error('[ARGUS] Error setting up directories:', error);
-    // Don't throw - let app continue and show error when user tries to use features
   }
 }
 
@@ -166,8 +364,21 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Load or initialize settings
+  userSettings = settings.loadSettings();
+
+  if (!userSettings || settings.isFirstRun()) {
+    console.log('[ARGUS] First run detected - showing setup dialog');
+    userSettings = await showSetupDialog();
+  }
+
+  console.log('[ARGUS] Using settings:', userSettings);
+
+  // Ensure directories exist
   ensureDirectories();
+
+  // Create main window
   createWindow();
 });
 
@@ -344,12 +555,13 @@ function executePython(command, args) {
     console.log('[ARGUS] Working directory:', workDir);
 
     const pythonProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: workDir,  // Set working directory to exe directory
+      cwd: workDir,  // Set working directory to exe directory (for DLL extraction)
       env: {
         ...process.env,
-        // Pass template directories to Python
-        ARGUS_USER_TEMPLATES: path.join(exeDir, 'templates'),
-        ARGUS_BUNDLED_TEMPLATES: path.join(appRoot, 'templates')
+        // Pass user-configured directories to Python
+        ARGUS_USER_TEMPLATES: userSettings.templatesDir,
+        ARGUS_BUNDLED_TEMPLATES: path.join(appRoot, 'templates'),
+        ARGUS_OUTPUT_DIR: userSettings.outputDir
       }
     });
 
