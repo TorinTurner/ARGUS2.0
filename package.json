@@ -9,6 +9,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist-win": "electron-builder --win",
+    "dist-win-x64": "electron-builder --win --x64",
+    "dist-win-arm64": "electron-builder --win --arm64",
     "dist-mac": "electron-builder --mac"
   },
   "devDependencies": {
@@ -56,7 +58,12 @@
       ]
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
