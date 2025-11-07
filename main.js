@@ -50,23 +50,64 @@ function getPythonPath() {
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
 
-    // Try root level first (same directory as ARGUS.exe)
-    // This allows runtime_tmpdir='.' to work properly for DLL extraction
-    const rootLevelPython = path.join(exeDir, exeName);
-    if (fs.existsSync(rootLevelPython)) {
-      console.log('[ARGUS] Using root-level bundled Python executable:', rootLevelPython);
-      return rootLevelPython;
+    // Target: Python exe at root level (same dir as ARGUS.exe)
+    // CRITICAL: PyInstaller's runtime_tmpdir='.' extracts DLLs relative to exe location
+    // By placing it next to ARGUS.exe, DLLs extract to user-writable directory
+    const targetPython = path.join(exeDir, exeName);
+
+    // Check if we already have it at root level
+    if (fs.existsSync(targetPython)) {
+      console.log('[ARGUS] Using root-level Python executable:', targetPython);
+      return targetPython;
     }
 
-    // Fallback: Check python-dist subdirectory (old location)
-    const bundledPython = path.join(appRoot, 'python-dist', exeName);
-    if (fs.existsSync(bundledPython)) {
-      console.log('[ARGUS] Using bundled Python executable:', bundledPython);
-      return bundledPython;
+    // Python exe not at root yet - need to copy it from bundled location
+    console.log('[ARGUS] Python exe not found at root, searching bundle...');
+
+    // Find source: Check multiple possible bundle locations
+    let sourcePython = null;
+    const possibleLocations = [
+      path.join(appRoot, exeName),                    // Root of unpacked
+      path.join(appRoot, 'python-dist', exeName),     // python-dist subdirectory
+      path.join(path.dirname(appRoot), exeName)       // One level up
+    ];
+
+    for (const location of possibleLocations) {
+      if (fs.existsSync(location)) {
+        sourcePython = location;
+        console.log('[ARGUS] Found bundled Python at:', sourcePython);
+        break;
+      }
     }
 
-    console.error('[ARGUS] ERROR: Bundled Python executable not found at:', rootLevelPython, 'or', bundledPython);
-    console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
+    if (!sourcePython) {
+      console.error('[ARGUS] CRITICAL ERROR: Bundled Python executable not found!');
+      console.error('[ARGUS] Searched locations:', possibleLocations);
+      return null;
+    }
+
+    // Copy Python exe to root level (next to ARGUS.exe)
+    // This ensures PyInstaller extracts DLLs to exe directory, not temp
+    try {
+      console.log('[ARGUS] Copying Python exe from bundle to root...');
+      console.log('[ARGUS]   Source:', sourcePython);
+      console.log('[ARGUS]   Target:', targetPython);
+
+      fs.copyFileSync(sourcePython, targetPython);
+
+      // On Unix systems, preserve executable permission
+      if (process.platform !== 'win32') {
+        fs.chmodSync(targetPython, 0o755);
+      }
+
+      console.log('[ARGUS] ✓ Python exe copied successfully to root level');
+      console.log('[ARGUS] DLLs will now extract to:', exeDir);
+      return targetPython;
+    } catch (error) {
+      console.error('[ARGUS] ERROR copying Python exe:', error.message);
+      console.error('[ARGUS] Falling back to bundled location (may cause DLL errors)');
+      return sourcePython;
+    }
   }
 
   // In development, use system Python
