@@ -326,6 +326,7 @@ function ensureDirectories() {
   try {
     const appRoot = getAppRootDir();
     const bundledTemplatesDir = path.join(appRoot, 'templates');
+    const exeDir = getExeDir();
 
     console.log('[ARGUS] App root directory:', appRoot);
     console.log('[ARGUS] Bundled templates directory:', bundledTemplatesDir);
@@ -341,6 +342,26 @@ function ensureDirectories() {
     if (!fs.existsSync(userSettings.outputDir)) {
       console.log('[ARGUS] Creating output directory...');
       fs.mkdirSync(userSettings.outputDir, { recursive: true });
+    }
+
+    // Create _internal directory for PyInstaller DLL extraction (portable exe only)
+    if (app.isPackaged) {
+      const internalDir = path.join(exeDir, '_internal');
+      if (!fs.existsSync(internalDir)) {
+        console.log('[ARGUS] Creating _internal directory for Python DLLs...');
+        fs.mkdirSync(internalDir, { recursive: true });
+      }
+
+      // Verify it's writable
+      try {
+        const testFile = path.join(internalDir, '.write-test');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+        console.log('[ARGUS] ✓ _internal directory is writable');
+      } catch (error) {
+        console.error('[ARGUS] WARNING: _internal directory is not writable:', error.message);
+        console.error('[ARGUS] This may cause DLL extraction to fail');
+      }
     }
 
     // Check bundled templates exist (these come with the app)
@@ -365,9 +386,30 @@ async function verifyPythonExecutable(pythonPath) {
     console.log('[ARGUS] Verifying Python executable and DLL loading...');
 
     const exeDir = getExeDir();
+    const internalDir = path.join(exeDir, '_internal');
+
+    console.log('[ARGUS] Verification working directory:', exeDir);
+    console.log('[ARGUS] DLL extraction target:', internalDir);
+
+    // Ensure _internal directory exists for DLL extraction
+    if (!fs.existsSync(internalDir)) {
+      console.log('[ARGUS] Creating _internal directory for verification...');
+      try {
+        fs.mkdirSync(internalDir, { recursive: true });
+      } catch (error) {
+        console.error('[ARGUS] Failed to create _internal directory:', error.message);
+      }
+    }
+
     const testProcess = spawn(pythonPath, ['--version'], {
       cwd: exeDir,  // Same working directory used for actual operations
-      timeout: 5000  // 5 second timeout
+      timeout: 5000,  // 5 second timeout
+      env: {
+        ...process.env,
+        // Set temp directories to _internal to force DLL extraction there
+        TEMP: process.platform === 'win32' ? internalDir : process.env.TEMP,
+        TMP: process.platform === 'win32' ? internalDir : process.env.TMP,
+      }
     });
 
     let stdout = '';
@@ -392,15 +434,18 @@ async function verifyPythonExecutable(pythonPath) {
         console.error('[ARGUS] stderr:', stderr);
 
         const { dialog } = require('electron');
+        const internalDirForError = path.join(getExeDir(), '_internal');
         dialog.showErrorBox(
           'Python Runtime Error',
           'Python executable verification failed. This usually indicates a DLL loading problem.\n\n' +
           'Error details:\n' + (stderr || stdout || 'Unknown error') + '\n\n' +
-          'Please try:\n' +
-          '1. Extracting to a different folder (e.g., C:\\ARGUS)\n' +
-          '2. Running as administrator\n' +
-          '3. Installing Visual C++ Redistributable\n' +
-          '4. Checking antivirus settings'
+          'Troubleshooting:\n' +
+          '1. Ensure the _internal folder is writable:\n   ' + internalDirForError + '\n' +
+          '2. Try running as administrator\n' +
+          '3. Install Visual C++ Redistributable 2015-2022\n' +
+          '4. Check antivirus/firewall settings\n' +
+          '5. Extract to a simpler path (e.g., C:\\ARGUS)\n' +
+          '6. Ensure the folder is not in Program Files or OneDrive'
         );
         resolve(false);
       }
@@ -410,14 +455,16 @@ async function verifyPythonExecutable(pythonPath) {
       console.error('[ARGUS] ✗ Failed to start Python process:', error.message);
 
       const { dialog } = require('electron');
+      const internalDirForError = path.join(getExeDir(), '_internal');
       dialog.showErrorBox(
         'Python Runtime Error',
         'Failed to start Python executable.\n\n' +
         'Error: ' + error.message + '\n\n' +
-        'Please try:\n' +
-        '1. Extracting to a folder with write permissions\n' +
-        '2. Running as administrator\n' +
-        '3. Checking antivirus settings'
+        'Troubleshooting:\n' +
+        '1. Ensure the _internal folder is writable:\n   ' + internalDirForError + '\n' +
+        '2. Try running as administrator\n' +
+        '3. Install Visual C++ Redistributable 2015-2022\n' +
+        '4. Check antivirus/firewall settings'
       );
       resolve(false);
     });
@@ -679,24 +726,42 @@ function executePython(command, args) {
     }
 
     // Use exe directory as working directory for:
-    // 1. Python DLL extraction (runtime_tmpdir='.' in spec file)
+    // 1. Python DLL extraction (runtime_tmpdir='_internal' in spec file)
+    //    PyInstaller will create C:\ARGUS\_internal\_MEIxxxxxx\ for DLL extraction
     // 2. Template and output file access
     const exeDir = getExeDir();
     const workDir = exeDir;
+    const internalDir = path.join(exeDir, '_internal');
 
     console.log('[ARGUS] Executing Python command:', command);
     console.log('[ARGUS] Spawn command:', spawnCommand);
     console.log('[ARGUS] Spawn args:', spawnArgs);
     console.log('[ARGUS] Working directory:', workDir);
+    console.log('[ARGUS] DLL extraction target:', internalDir);
+
+    // Verify _internal directory exists and is writable (for packaged builds)
+    if (app.isPackaged && !fs.existsSync(internalDir)) {
+      console.error('[ARGUS] ERROR: _internal directory does not exist:', internalDir);
+      console.error('[ARGUS] This will cause DLL extraction to fail');
+      console.error('[ARGUS] Creating directory now...');
+      try {
+        fs.mkdirSync(internalDir, { recursive: true });
+      } catch (error) {
+        console.error('[ARGUS] Failed to create _internal directory:', error.message);
+      }
+    }
 
     const pythonProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: workDir,  // Set working directory to exe directory (for DLL extraction)
+      cwd: workDir,  // Set working directory to exe directory (for DLL extraction to _internal subdirectory)
       env: {
         ...process.env,
         // Pass user-configured directories to Python
         ARGUS_USER_TEMPLATES: userSettings.templatesDir,
         ARGUS_BUNDLED_TEMPLATES: path.join(appRoot, 'templates'),
-        ARGUS_OUTPUT_DIR: userSettings.outputDir
+        ARGUS_OUTPUT_DIR: userSettings.outputDir,
+        // Help PyInstaller find extraction directory (though runtime_tmpdir in spec should handle this)
+        TEMP: process.platform === 'win32' ? internalDir : process.env.TEMP,
+        TMP: process.platform === 'win32' ? internalDir : process.env.TMP,
       }
     });
 
