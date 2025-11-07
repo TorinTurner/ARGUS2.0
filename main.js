@@ -74,18 +74,39 @@ function getPythonPath() {
       path.join(path.dirname(appRoot), exeName)       // One level up
     ];
 
+    console.log('[ARGUS] Searching for bundled Python in:', possibleLocations);
+
     for (const location of possibleLocations) {
+      console.log('[ARGUS]   Checking:', location);
       if (fs.existsSync(location)) {
         sourcePython = location;
-        console.log('[ARGUS] Found bundled Python at:', sourcePython);
+        console.log('[ARGUS]   ✓ Found bundled Python at:', sourcePython);
         break;
+      } else {
+        console.log('[ARGUS]   ✗ Not found');
       }
     }
 
     if (!sourcePython) {
       console.error('[ARGUS] CRITICAL ERROR: Bundled Python executable not found!');
       console.error('[ARGUS] Searched locations:', possibleLocations);
+      console.error('[ARGUS] App root:', appRoot);
+      console.error('[ARGUS] Exe dir:', exeDir);
       return null;
+    }
+
+    // Verify target directory is writable before attempting copy
+    try {
+      console.log('[ARGUS] Verifying target directory is writable:', exeDir);
+      const testFile = path.join(exeDir, '.argus-write-test');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+      console.log('[ARGUS] ✓ Target directory is writable');
+    } catch (error) {
+      console.error('[ARGUS] ERROR: Target directory is not writable:', error.message);
+      console.error('[ARGUS] Cannot copy Python exe to:', targetPython);
+      console.error('[ARGUS] This will likely cause DLL loading errors');
+      return null;  // Return null to trigger error dialog
     }
 
     // Copy Python exe to root level (next to ARGUS.exe)
@@ -93,22 +114,40 @@ function getPythonPath() {
     try {
       console.log('[ARGUS] Copying Python exe from bundle to root...');
       console.log('[ARGUS]   Source:', sourcePython);
+      console.log('[ARGUS]   Source size:', fs.statSync(sourcePython).size, 'bytes');
       console.log('[ARGUS]   Target:', targetPython);
+      console.log('[ARGUS]   Target dir:', exeDir);
 
       fs.copyFileSync(sourcePython, targetPython);
 
+      // Verify the copy succeeded
+      if (!fs.existsSync(targetPython)) {
+        throw new Error('Copy completed but target file does not exist');
+      }
+
+      const targetSize = fs.statSync(targetPython).size;
+      const sourceSize = fs.statSync(sourcePython).size;
+
+      if (targetSize !== sourceSize) {
+        throw new Error(`Copy size mismatch: source ${sourceSize} bytes, target ${targetSize} bytes`);
+      }
+
+      console.log('[ARGUS]   Target size:', targetSize, 'bytes');
+
       // On Unix systems, preserve executable permission
       if (process.platform !== 'win32') {
+        console.log('[ARGUS] Setting executable permissions on Unix...');
         fs.chmodSync(targetPython, 0o755);
       }
 
       console.log('[ARGUS] ✓ Python exe copied successfully to root level');
-      console.log('[ARGUS] DLLs will now extract to:', exeDir);
+      console.log('[ARGUS] ✓ DLLs will now extract to:', exeDir);
       return targetPython;
     } catch (error) {
       console.error('[ARGUS] ERROR copying Python exe:', error.message);
-      console.error('[ARGUS] Falling back to bundled location (may cause DLL errors)');
-      return sourcePython;
+      console.error('[ARGUS] Error details:', error);
+      console.error('[ARGUS] This is a critical error that will prevent the app from working');
+      return null;  // Return null to trigger error dialog instead of silent fallback
     }
   }
 
@@ -316,6 +355,75 @@ function ensureDirectories() {
   }
 }
 
+/**
+ * Verify Python executable works by testing DLL loading
+ * @param {string} pythonPath - Path to Python executable
+ * @returns {Promise<boolean>} True if verification succeeded
+ */
+async function verifyPythonExecutable(pythonPath) {
+  return new Promise((resolve) => {
+    console.log('[ARGUS] Verifying Python executable and DLL loading...');
+
+    const exeDir = getExeDir();
+    const testProcess = spawn(pythonPath, ['--version'], {
+      cwd: exeDir,  // Same working directory used for actual operations
+      timeout: 5000  // 5 second timeout
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    testProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    testProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    testProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log('[ARGUS] ✓ Python executable verification successful');
+        console.log('[ARGUS] DLLs loaded correctly, Python is ready');
+        resolve(true);
+      } else {
+        console.error('[ARGUS] ✗ Python executable verification failed with code:', code);
+        console.error('[ARGUS] stdout:', stdout);
+        console.error('[ARGUS] stderr:', stderr);
+
+        const { dialog } = require('electron');
+        dialog.showErrorBox(
+          'Python Runtime Error',
+          'Python executable verification failed. This usually indicates a DLL loading problem.\n\n' +
+          'Error details:\n' + (stderr || stdout || 'Unknown error') + '\n\n' +
+          'Please try:\n' +
+          '1. Extracting to a different folder (e.g., C:\\ARGUS)\n' +
+          '2. Running as administrator\n' +
+          '3. Installing Visual C++ Redistributable\n' +
+          '4. Checking antivirus settings'
+        );
+        resolve(false);
+      }
+    });
+
+    testProcess.on('error', (error) => {
+      console.error('[ARGUS] ✗ Failed to start Python process:', error.message);
+
+      const { dialog } = require('electron');
+      dialog.showErrorBox(
+        'Python Runtime Error',
+        'Failed to start Python executable.\n\n' +
+        'Error: ' + error.message + '\n\n' +
+        'Please try:\n' +
+        '1. Extracting to a folder with write permissions\n' +
+        '2. Running as administrator\n' +
+        '3. Checking antivirus settings'
+      );
+      resolve(false);
+    });
+  });
+}
+
 
 // Create main window
 function createWindow() {
@@ -377,6 +485,31 @@ app.whenReady().then(async () => {
 
   // Ensure directories exist
   ensureDirectories();
+
+  // Initialize Python executable early (before any IPC calls)
+  // This ensures ARGUS_core.exe is copied to root and ready to use
+  console.log('[ARGUS] Initializing Python executable...');
+  const pythonPath = getPythonPath();
+
+  if (app.isPackaged && !pythonPath) {
+    console.error('[ARGUS] CRITICAL: Python executable initialization failed');
+    const { dialog } = require('electron');
+    dialog.showErrorBox(
+      'ARGUS Initialization Error',
+      'Failed to initialize Python runtime. The application may not work correctly.\n\n' +
+      'Please try:\n' +
+      '1. Running as administrator\n' +
+      '2. Extracting to a folder with write permissions\n' +
+      '3. Reinstalling the application'
+    );
+  } else if (pythonPath) {
+    console.log('[ARGUS] ✓ Python executable ready at:', pythonPath);
+
+    // Verify Python exe works by testing DLL loading
+    if (app.isPackaged) {
+      await verifyPythonExecutable(pythonPath);
+    }
+  }
 
   // Create main window
   createWindow();
@@ -624,11 +757,46 @@ ipcMain.handle('select-file', async (event, options) => {
 
 ipcMain.handle('list-templates', async () => {
   try {
+    console.log('[ARGUS] Listing templates...');
     const result = await executePython('list-templates', []);
+    console.log('[ARGUS] Found', result.templates?.length || 0, 'templates');
+
+    if (!result.templates || result.templates.length === 0) {
+      console.warn('[ARGUS] No templates found');
+      console.warn('[ARGUS] User templates dir:', userSettings.templatesDir);
+      console.warn('[ARGUS] Bundled templates dir:', path.join(getAppRootDir(), 'templates'));
+
+      // Check if directories exist
+      const userTemplatesExist = fs.existsSync(userSettings.templatesDir);
+      const bundledTemplatesExist = fs.existsSync(path.join(getAppRootDir(), 'templates'));
+
+      console.warn('[ARGUS] User templates exist:', userTemplatesExist);
+      console.warn('[ARGUS] Bundled templates exist:', bundledTemplatesExist);
+
+      if (!bundledTemplatesExist) {
+        return {
+          success: false,
+          error: 'Bundled templates not found. The application may not be packaged correctly.'
+        };
+      }
+    }
+
     return { success: true, data: result.templates || [] };
   } catch (error) {
-    console.error('List templates error:', error);
-    return { success: false, error: error.message };
+    console.error('[ARGUS] List templates error:', error);
+    console.error('[ARGUS] This usually indicates Python runtime failed to start');
+
+    // Provide more helpful error message
+    let errorMessage = error.message;
+    if (error.message.includes('Failed to start Python')) {
+      errorMessage = 'Python runtime failed to start. This is usually caused by DLL loading issues.\n\n' +
+        'Please ensure:\n' +
+        '1. The application is extracted to a folder with write permissions\n' +
+        '2. Visual C++ Redistributable is installed\n' +
+        '3. Antivirus is not blocking the application';
+    }
+
+    return { success: false, error: errorMessage };
   }
 });
 

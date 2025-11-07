@@ -76,9 +76,28 @@ async function loadTemplates() {
     if (result.success) {
       state.templates = result.data;
       updateTemplateDropdowns();
+
+      if (result.data.length === 0) {
+        console.warn('No templates found - user may need to add templates');
+        // Don't show alert on startup if no templates, just log warning
+        // User will see "No templates found" in the dropdown
+      }
+    } else {
+      // Show error to user
+      console.error('Failed to load templates:', result.error);
+      state.templates = [];
+      updateTemplateDropdowns();
+
+      // Show error alert
+      alert('Failed to load templates:\n\n' + result.error);
     }
   } catch (error) {
     console.error('Error loading templates:', error);
+    state.templates = [];
+    updateTemplateDropdowns();
+
+    // Show error alert
+    alert('Failed to load templates:\n\n' + error.message);
   }
 }
 
