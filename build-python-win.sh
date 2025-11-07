@@ -184,10 +184,10 @@ DOCKERFILE
             argus-win-builder \
             sh -c "xvfb-run wine python -m PyInstaller ARGUS_core.spec --clean; wineserver -w"
 
-        # Check if build succeeded
-        if [ ! -f "python/dist/ARGUS_core.exe" ]; then
+        # Check if build succeeded (onedir creates a directory, not a single exe)
+        if [ ! -d "python/dist/ARGUS_core" ]; then
             echo ""
-            echo "✗ Build failed! ARGUS_core.exe not found."
+            echo "✗ Build failed! ARGUS_core directory not found."
             echo ""
             echo "Docker + Wine builds can be unreliable. Consider using:"
             echo "  - GitHub Actions (option 1)"
@@ -195,29 +195,40 @@ DOCKERFILE
             exit 1
         fi
 
-        # Create python-dist directory for Electron to bundle
+        if [ ! -f "python/dist/ARGUS_core/ARGUS_core.exe" ]; then
+            echo ""
+            echo "✗ Build failed! ARGUS_core.exe not found in output directory."
+            echo ""
+            echo "Docker + Wine builds can be unreliable. Consider using:"
+            echo "  - GitHub Actions (option 1)"
+            echo "  - A real Windows machine (option 3)"
+            exit 1
+        fi
+
+        # Create python-dist directory and copy entire ARGUS_core folder (onedir build)
         echo ""
         echo "[3/3] Preparing for Electron bundling..."
+        rm -rf python-dist
         mkdir -p python-dist
-        cp python/dist/ARGUS_core.exe python-dist/
-
-        # Also copy to root level for proper DLL extraction
-        # This allows runtime_tmpdir='.' to extract DLLs next to ARGUS.exe
-        cp python/dist/ARGUS_core.exe ARGUS_core.exe
+        cp -r python/dist/ARGUS_core python-dist/
 
         echo ""
         echo "========================================="
         echo "  Windows .exe Built Successfully!"
         echo "========================================="
         echo ""
-        echo "Location: python-dist/ARGUS_core.exe (legacy)"
-        echo "Location: ARGUS_core.exe (root level - for DLL extraction)"
-        echo "Size:"
-        ls -lh python-dist/ARGUS_core.exe | awk '{print $5 " " $9}'
+        echo "Location: python-dist/ARGUS_core/ (onedir build)"
+        echo "Structure:"
+        echo "  ARGUS_core/"
+        echo "  ├── ARGUS_core.exe"
+        echo "  └── _internal/ (all DLLs)"
+        echo ""
+        echo "Directory contents:"
+        ls -1 python-dist/ARGUS_core
         echo ""
         echo "Next steps:"
         echo "  1. Run: npm run dist-win-from-mac"
-        echo "  2. Test the .exe on a Windows machine"
+        echo "  2. Your installer will be in dist/"
         echo ""
         echo "⚠️  Note: Wine-built executables may have compatibility issues."
         echo "    For production builds, use GitHub Actions or native Windows."

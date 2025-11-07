@@ -41,16 +41,17 @@ jobs:
         env:
           PYINSTALLER_TARGET_ARCH: ${{ matrix.arch }}
 
-      - name: Create python-dist directory
+      - name: Create python-dist directory and copy onedir build
         run: |
-          mkdir -p python-dist
-          copy python\dist\ARGUS_core.exe python-dist\
+          if exist python-dist rmdir /s /q python-dist
+          mkdir python-dist
+          xcopy python\dist\ARGUS_core python-dist\ARGUS_core\ /E /I /Q
 
       - name: Upload Python executable artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-python-${{ matrix.arch }}
-          path: python-dist/ARGUS_core.exe
+          path: python-dist/ARGUS_core/
           retention-days: 30
 
   build-electron:
@@ -79,12 +80,12 @@ jobs:
         run: npm install
 
       - name: Build Electron app for Windows ${{ matrix.arch }}
-        run: npx electron-builder --win --${{ matrix.arch }} --config.win.target=portable
+        run: npx electron-builder --win --${{ matrix.arch }} --config.win.target=nsis
 
-      - name: Upload Windows portable executable
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: ARGUS-Windows-${{ matrix.arch }}-portable
+          name: ARGUS-Windows-${{ matrix.arch }}-installer
           path: dist/*.exe
           retention-days: 90
 

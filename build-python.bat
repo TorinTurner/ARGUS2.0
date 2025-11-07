@@ -39,36 +39,44 @@ cd python
 python -m PyInstaller ARGUS_core.spec --clean
 cd ..
 
-REM Check if build succeeded
-if not exist "python\dist\ARGUS_core.exe" (
+REM Check if build succeeded (onedir creates a directory, not a single exe)
+if not exist "python\dist\ARGUS_core" (
     echo.
-    echo X Build failed! ARGUS_core.exe not found.
+    echo X Build failed! ARGUS_core directory not found.
     pause
     exit /b 1
 )
 
-REM Create python-dist directory for Electron to bundle
+if not exist "python\dist\ARGUS_core\ARGUS_core.exe" (
+    echo.
+    echo X Build failed! ARGUS_core.exe not found in output directory.
+    pause
+    exit /b 1
+)
+
+REM Create python-dist directory and copy entire ARGUS_core folder (onedir build)
 echo.
 echo [4/4] Preparing for Electron bundling...
-if not exist "python-dist" mkdir python-dist
-copy python\dist\ARGUS_core.exe python-dist\ >nul
-
-REM Also copy to root level for proper DLL extraction
-REM This allows runtime_tmpdir='.' to extract DLLs next to ARGUS.exe
-copy python\dist\ARGUS_core.exe ARGUS_core.exe >nul
+if exist "python-dist" rmdir /s /q python-dist
+mkdir python-dist
+xcopy python\dist\ARGUS_core python-dist\ARGUS_core\ /E /I /Q >nul
 
 echo.
 echo =========================================
 echo   Python Executable Built Successfully!
 echo =========================================
 echo.
-echo Location: python-dist\ARGUS_core.exe (legacy)
-echo Location: ARGUS_core.exe (root level - for DLL extraction)
-echo Size:
-dir python-dist\ARGUS_core.exe | find "ARGUS_core.exe"
+echo Location: python-dist\ARGUS_core\ (onedir build)
+echo Structure:
+echo   ARGUS_core\
+echo   ├── ARGUS_core.exe
+echo   └── _internal\ (all DLLs)
+echo.
+echo Directory contents:
+dir /B python-dist\ARGUS_core
 echo.
 echo Next steps:
 echo   1. Run: npm run dist-win
-echo   2. Your portable .exe will be in dist\
+echo   2. Your installer will be in dist\
 echo.
 pause
