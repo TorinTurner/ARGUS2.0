@@ -22,14 +22,14 @@ def check_architecture():
     print("=" * 50)
 
     if bits != 64:
-        print("\n⚠️  WARNING: You are using 32-bit Python!")
+        print("\n[WARNING] You are using 32-bit Python!")
         print("PyInstaller will create 32-bit executables.")
         print("\nFor 64-bit builds, install 64-bit Python from:")
         print("https://www.python.org/downloads/")
         print("\nLook for 'Windows installer (64-bit)' download")
         return False
 
-    print("\n✓ Using 64-bit Python - will create 64-bit executables")
+    print("\n[OK] Using 64-bit Python - will create 64-bit executables")
     return True
 
 if __name__ == "__main__":
