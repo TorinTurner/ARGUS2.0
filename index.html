@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>ARGUS - Weather Image Compression</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo"></div>
+        <div class="header-text">
+          <h1>ARGUS</h1>
+          <span class="subtitle">Weather Image Compression System</span>
+        </div>
+      </div>
+      
+      <div class="header-center">
+        <div class="mode-toggle">
+          <button id="shore-btn" class="mode-btn active">
+            ▲ Shore
+          </button>
+          <button id="submarine-btn" class="mode-btn">
+            ▼ Submarine
+          </button>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <button class="icon-btn" id="credits-btn" title="Credits">!</button>
+        <button class="icon-btn" id="help-btn" title="Help">?</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-content">
+      
+      <!-- SHORE MODE -->
+      <div id="shore-mode" class="mode-content active">
+        <div class="content-section">
+          <h2>Compress Weather Image</h2>
+          
+          <!-- File Selection -->
+          <div class="file-selector">
+            <div id="shore-drop-zone" class="drop-zone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">FILE</div>
+                <p class="drop-text">Drag & drop weather image here</p>
+                <p class="drop-subtext">or</p>
+                <button id="shore-browse-btn" class="browse-btn">Browse for GIF/JPG</button>
+              </div>
+              <div id="shore-file-preview" class="file-preview" style="display: none;">
+                <img id="shore-preview-img" alt="Preview">
+                <div class="file-info">
+                  <div id="shore-file-name" class="file-name"></div>
+                  <button id="shore-remove-btn" class="remove-btn">✕ Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Template Selection (shown after file selected) -->
+          <div id="shore-template-section" class="template-section" style="display: none;">
+            <h3>Select Template</h3>
+            <div class="template-choice">
+              <div class="template-row">
+                <label for="shore-template">Existing Template:</label>
+                <select id="shore-template" class="input-field">
+                  <option value="">Loading templates...</option>
+                </select>
+              </div>
+              <div class="template-row">
+                <span>— OR —</span>
+              </div>
+              <div class="template-row">
+                <button id="shore-new-template-btn" class="secondary-btn">Create New Template</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration (shown after template selected) -->
+          <div id="shore-config-section" class="config-section" style="display: none;">
+            <h3>Message Details</h3>
+            <div class="config-panel">
+              <div class="config-row">
+                <label for="shore-dtg">DTG (Date-Time-Group):</label>
+                <input type="text" id="shore-dtg" class="input-field" placeholder="061200ZNOV2025">
+                <button id="auto-dtg-btn" class="secondary-btn" title="Auto-fill current DTG">Now</button>
+              </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="action-panel">
+              <button id="shore-generate-btn" class="primary-btn">
+                Generate VLF Message
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress -->
+          <div id="shore-progress" class="progress-container" style="display: none;">
+            <div class="progress-bar">
+              <div id="shore-progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="shore-progress-text" class="progress-text">Processing...</div>
+          </div>
+
+          <!-- Result -->
+          <div id="shore-result" class="result-panel" style="display: none;">
+            <div class="result-success">
+              <div class="result-icon">√</div>
+              <div class="result-text">
+                <h3>VLF Message Generated!</h3>
+                <p id="shore-result-path"></p>
+                <button id="shore-open-folder-btn" class="secondary-btn">Open Folder</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBMARINE MODE -->
+      <div id="submarine-mode" class="mode-content">
+        <div class="content-section">
+          <h2>Decode VLF Message</h2>
+          
+          <!-- File/Text Input -->
+          <div class="input-method-toggle">
+            <button id="sub-file-mode-btn" class="toggle-btn active">File Input</button>
+            <button id="sub-text-mode-btn" class="toggle-btn">Paste Message</button>
+          </div>
+
+          <!-- File Input Mode -->
+          <div id="sub-file-input" class="input-mode active">
+            <div id="sub-drop-zone" class="drop-zone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">FILE</div>
+                <p class="drop-text">Drag & drop VLF message text file here</p>
+                <p class="drop-subtext">or</p>
+                <button id="sub-browse-btn" class="browse-btn">Browse for .txt file</button>
+              </div>
+              <div id="sub-file-preview" class="file-preview" style="display: none;">
+                <div class="file-info">
+                  <div id="sub-file-name" class="file-name"></div>
+                  <button id="sub-remove-btn" class="remove-btn">✕ Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Input Mode -->
+          <div id="sub-text-input" class="input-mode">
+            <textarea id="sub-message-text" class="message-textarea" 
+              placeholder="Paste VLF message here...&#10;&#10;Message should contain 'A1R1G2U3S5' marker"
+              rows="12"></textarea>
+          </div>
+
+          <!-- Template Selection (REQUIRED for submarine) -->
+          <div class="config-panel">
+            <div class="config-row">
+              <label for="sub-template">Select Template (AOR):</label>
+              <select id="sub-template" class="input-field">
+                <option value="">Select template...</option>
+              </select>
+            </div>
+            <p class="help-text">Template must match the one used to create the message</p>
+          </div>
+
+          <!-- Validation -->
+          <div id="sub-validation" class="validation-panel" style="display: none;">
+            <div class="validation-error">
+              <div class="error-icon"></div>
+              <div class="error-text">
+                <h4>Message Validation Issues:</h4>
+                <ul id="sub-validation-list"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div class="action-panel">
+            <button id="sub-decode-btn" class="primary-btn" disabled>
+              Decode & Display Image
+            </button>
+          </div>
+
+          <!-- Progress -->
+          <div id="sub-progress" class="progress-container" style="display: none;">
+            <div class="progress-bar">
+              <div id="sub-progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="sub-progress-text" class="progress-text">Decoding...</div>
+          </div>
+
+          <!-- Result -->
+          <div id="sub-result" class="result-panel" style="display: none;">
+            <div class="result-success">
+              <div class="result-icon">√</div>
+              <div class="result-text">
+                <h3>Image Decoded Successfully!</h3>
+                <p id="sub-result-path"></p>
+                <div class="result-actions">
+                  <button id="sub-open-folder-btn" class="secondary-btn">[▤] Open Folder</button>
+                </div>
+              </div>
+              <div id="sub-preview" class="image-preview">
+                <img id="sub-preview-img" alt="Decoded image">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal for Help -->
+  <div id="help-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>ARGUS Help</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3>Shore Mode</h3>
+        <p>Use Shore Mode to compress weather images for VLF transmission:</p>
+        <ol>
+          <li>Select or drag a weather GIF/JPG image</li>
+          <li>Choose the appropriate template (AOR)</li>
+          <li>Enter the DTG (Date-Time-Group)</li>
+          <li>Click "Generate VLF Message"</li>
+          <li>Message file will be saved and can be transmitted</li>
+        </ol>
+
+        <h3>Submarine Mode</h3>
+        <p>Use Submarine Mode to decode received VLF messages:</p>
+        <ol>
+          <li>Either drop the .txt file or paste the message text</li>
+          <li>Message will be validated automatically</li>
+          <li>Click "Decode & Display Image"</li>
+          <li>Weather image will be displayed and saved</li>
+        </ol>
+
+        <h3>Templates</h3>
+        <p>Templates contain the map borders, coordinates, and color scale for each AOR (Area of Responsibility). Templates must be promulgated between TYCOM/ISIC/Boat before use.</p>
+
+        <h3>Technical Details</h3>
+        <p>ARGUS uses Discrete Fourier Transform (DFT) compression to achieve a 1:4500 compression ratio, enabling weather images to be transmitted via VLF's limited bandwidth.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Template Builder -->
+  <div id="template-builder-modal" class="modal">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>Create New Template</h2>
+        <button class="modal-close" onclick="closeTemplateBuilder()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="template-builder">
+          <!-- Step indicator -->
+          <div class="step-indicator">
+            <div class="step active" id="step-1">1. Name</div>
+            <div class="step" id="step-2">2. Color Bar</div>
+            <div class="step" id="step-3">3. Map Area</div>
+          </div>
+
+          <!-- Step 1: Name Template -->
+          <div id="builder-step-1" class="builder-step active">
+            <h3>Name Your Template</h3>
+            <p>Enter a unique name (e.g., EPAC, WPAC, CENTCOM)</p>
+            <div class="input-group">
+              <label for="template-name">Template Name:</label>
+              <input type="text" id="template-name" class="input-field" placeholder="Enter template name">
+            </div>
+            <div class="button-group">
+              <button class="secondary-btn" id="builder-cancel-btn">Cancel</button>
+              <button class="primary-btn" id="builder-next-1">Next →</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Select Color Bar -->
+          <div id="builder-step-2" class="builder-step">
+            <h3>Select Color Bar</h3>
+            <p>Click and drag to select the color scale/legend area</p>
+            <div class="canvas-container">
+              <canvas id="template-canvas"></canvas>
+            </div>
+            <div class="button-group">
+              <button class="secondary-btn" id="builder-back-2">← Back</button>
+              <button class="primary-btn" id="next-scale-btn" disabled>Next →</button>
+            </div>
+          </div>
+
+          <!-- Step 3: Select Map Area -->
+          <div id="builder-step-3" class="builder-step">
+            <h3>Select Map Area</h3>
+            <p>Click and drag to select the weather data area (where data will be displayed)</p>
+            <div class="canvas-container">
+              <canvas id="template-canvas-3"></canvas>
+            </div>
+            <div class="button-group">
+              <button class="secondary-btn" id="builder-back-3">← Back</button>
+              <button class="primary-btn" id="next-bounds-btn" disabled>Create Template</button>
+            </div>
+          </div>
+
+          <!-- Progress indicator -->
+          <div id="builder-progress" class="progress-container" style="display: none;">
+            <div class="progress-bar">
+              <div id="builder-progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="builder-progress-text" class="progress-text">Creating template...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Credits Modal -->
+  <div id="credits-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Credits</h2>
+        <button class="modal-close" onclick="document.getElementById('credits-modal').classList.remove('active')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-section">
+          <h3>ARGUS Weather Image Compression System</h3>
+          <p><strong>Original Algorithm & Design:</strong> LCDR Sean Peneyra / Aevix LLC</p>
+          <p><strong>Electron UI Implementation:</strong> ITN1 Torin Turner / Elevated Engineering LLC</p>
+          <p><strong>Version:</strong> 2.0 - 06 Nov 2025</p>
+        </div>
+        <div class="help-section">
+          <h3>Technical Specifications</h3>
+          <p>• Compression Ratio: 1:4500</p>
+          <p>• Message Size: < 1KB</p>
+          <p>• Transmission: VLF </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

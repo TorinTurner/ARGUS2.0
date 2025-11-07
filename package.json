@@ -1,0 +1,74 @@
+{
+  "name": "argus",
+  "version": "2.0.0",
+  "description": "ARGUS Weather Image Compression System",
+  "main": "main.js",
+  "author": "LCDR Sean Peneyra / Aevix LLC",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist-win": "electron-builder --win",
+    "dist-mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.aevix.argus",
+    "productName": "ARGUS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "python/**/*",
+      "templates/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "python/**/*",
+      "templates/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {}
+}
