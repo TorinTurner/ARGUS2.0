@@ -28,7 +28,10 @@ function getPythonPath() {
 
   // In production (packaged app), use bundled Python executable
   if (app.isPackaged) {
-    const bundledPython = path.join(appRoot, 'python-dist', 'ARGUS_core.exe');
+    // Check for platform-specific executable names
+    // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
+    const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
+    const bundledPython = path.join(appRoot, 'python-dist', exeName);
 
     if (fs.existsSync(bundledPython)) {
       console.log('[ARGUS] Using bundled Python executable:', bundledPython);
@@ -146,7 +149,8 @@ function checkPythonDependencies() {
     const pythonPath = getPythonPath();
 
     // If using bundled Python executable, skip dependency check (everything is bundled)
-    if (pythonPath.endsWith('ARGUS_core.exe')) {
+    if (pythonPath.includes('python-dist') &&
+        (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'))) {
       console.log('[ARGUS] Using bundled Python executable - skipping dependency check');
       resolve({ available: true, version: 'Bundled', bundled: true });
       return;
@@ -245,7 +249,8 @@ function executePython(command, args) {
     let spawnArgs;
 
     // Check if using bundled Python executable (production)
-    const isBundledExe = pythonPath.endsWith('ARGUS_core.exe');
+    const isBundledExe = pythonPath.includes('python-dist') &&
+                         (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'));
 
     if (isBundledExe) {
       // Bundled executable: Python interpreter and script are already compiled in

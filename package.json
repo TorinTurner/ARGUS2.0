@@ -8,12 +8,15 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "build-python": "cd python && pyinstaller ARGUS_core.spec --clean && cd .. && if not exist python-dist mkdir python-dist && copy python\\dist\\ARGUS_core.exe python-dist\\",
-    "dist-win": "npm run build-python && electron-builder --win",
-    "dist-win-x64": "npm run build-python && electron-builder --win --x64",
-    "dist-win-arm64": "npm run build-python && electron-builder --win --arm64",
-    "dist-win-portable": "npm run build-python && electron-builder --win portable",
-    "dist-mac": "electron-builder --mac"
+    "build-python:win": "build-python.bat",
+    "build-python:unix": "bash build-python.sh",
+    "dist-win": "npm run build-python:win && electron-builder --win",
+    "dist-win-x64": "npm run build-python:win && electron-builder --win --x64",
+    "dist-win-arm64": "npm run build-python:win && electron-builder --win --arm64",
+    "dist-win-portable": "npm run build-python:win && electron-builder --win portable",
+    "dist-mac": "npm run build-python:unix && electron-builder --mac",
+    "dist-mac-universal": "npm run build-python:unix && electron-builder --mac --universal",
+    "dist-linux": "npm run build-python:unix && electron-builder --linux"
   },
   "devDependencies": {
     "electron": "^27.0.0",

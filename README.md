@@ -153,35 +153,45 @@ argus-modern-build/
 
 ## 📦 Building for Distribution
 
-### ⚠️ IMPORTANT: Portable .exe Requirements
+### ⚠️ IMPORTANT: Self-Contained Builds
 
-The portable .exe is **truly self-contained** and works on **bare Windows systems with NO dependencies**.
+ARGUS builds are **truly self-contained** and work on systems with **NO dependencies**.
 
 ### Build Steps
 
 **1. Install Build Tools (one-time setup):**
+
+**Windows:**
 ```bash
-# Install Node.js dependencies
 npm install
-
-# Install Python dependencies (for building only)
-cd python
-pip install -r requirements.txt
-cd ..
+cd python && pip install -r requirements.txt && cd ..
 ```
 
-**2. Build Python Standalone Executable:**
+**macOS:**
 ```bash
-build-python.bat
+npm install
+cd python && pip3 install -r requirements.txt && cd ..
 ```
-This creates `python-dist/ARGUS_core.exe` (~100-120MB) with Python + all packages bundled.
 
-**3. Build Electron Portable Package:**
+**2. Build for Your Platform:**
+
+**Windows Portable .exe:**
 ```bash
 npm run dist-win-portable
 ```
+Output: `dist/ARGUS-2.0.0-x64-portable.exe` (~150-200MB)
 
-**Output:** `dist/ARGUS-{version}-{arch}-portable.exe` (~150-200MB)
+**macOS .dmg:**
+```bash
+npm run dist-mac
+```
+Output: `dist/ARGUS-2.0.0.dmg` (~150-200MB)
+
+**Linux AppImage:**
+```bash
+npm run dist-linux
+```
+Output: `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
 
 **📖 See [BUILD.md](BUILD.md) for detailed build instructions**
 

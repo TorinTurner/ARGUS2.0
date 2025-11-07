@@ -1,35 +1,48 @@
 # Building ARGUS Portable Executable
 
-This guide explains how to build a **truly portable** ARGUS executable that works on **bare Windows systems with NO dependencies**.
+This guide explains how to build **truly portable** ARGUS executables for **Windows, macOS, and Linux**.
 
 ## Overview
 
-The portable .exe bundles:
+ARGUS can be built as a self-contained application that bundles:
 - ✅ Electron runtime
 - ✅ Python interpreter (embedded)
 - ✅ All Python packages (opencv, numpy, imageio, etc.)
 - ✅ All application code
 - ✅ Templates
 
-**Result:** Single .exe file (~150-200MB) that runs on any Windows machine without installation.
+**Results:**
+- **Windows:** Single .exe file (~150-200MB) that runs on any Windows 7/10/11 machine
+- **macOS:** .dmg installer (~150-200MB) that runs on macOS 10.13+ (Intel & Apple Silicon)
+- **Linux:** AppImage (~150-200MB) that runs on most modern Linux distributions
 
 ---
 
 ## Prerequisites (For Building Only)
 
-You need these tools **only to BUILD** the executable. The final .exe will run on bare Windows with nothing installed.
+You need these tools **only to BUILD** the application. The final package will run with NO dependencies installed.
 
 ### Required:
 1. **Node.js 18+** - https://nodejs.org/
 2. **Python 3.8-3.11** - https://python.org/
    - ⚠️ Use Python 3.11 or earlier (PyInstaller works best with these)
-   - Check "Add Python to PATH" during installation
+   - **Windows:** Check "Add Python to PATH" during installation
+   - **macOS/Linux:** Use `python3` command
 
 ### Verify Installation:
+
+**Windows:**
 ```bash
 node --version    # Should show v18 or higher
 python --version  # Should show 3.8-3.11
 npm --version     # Should be installed with Node.js
+```
+
+**macOS/Linux:**
+```bash
+node --version     # Should show v18 or higher
+python3 --version  # Should show 3.8-3.11
+npm --version      # Should be installed with Node.js
 ```
 
 ---
@@ -44,65 +57,112 @@ npm install
 This installs Electron and electron-builder.
 
 ### 2. Install Python Dependencies
+
+**Windows:**
 ```bash
 cd python
 pip install -r requirements.txt
 cd ..
 ```
 
+**macOS/Linux:**
+```bash
+cd python
+pip3 install -r requirements.txt
+cd ..
+```
+
 This installs:
 - opencv-python, numpy, Pillow, imageio, PyYAML (for the app)
-- pyinstaller (to create the standalone .exe)
+- pyinstaller (to create the standalone executable)
 
-### 3. Build Python Executable
+### 3. Build for Your Platform
 
-**Option A: Using the build script (Recommended)**
+Choose the appropriate command for your target platform:
+
+#### 🪟 Windows
+
+**Build Python executable:**
 ```bash
 build-python.bat
 ```
 
-**Option B: Manual build**
-```bash
-cd python
-pyinstaller ARGUS_core.spec --clean
-cd ..
-mkdir python-dist
-copy python\dist\ARGUS_core.exe python-dist\
-```
-
-This creates `python-dist/ARGUS_core.exe` which contains:
-- Python 3.x interpreter
-- All Python packages compiled into the .exe
-- ARGUS core processing code
-
-**Expected size:** ~100-120MB
-
-### 4. Build Electron Portable Package
-
+**Build portable .exe:**
 ```bash
 npm run dist-win-portable
 ```
 
-This:
-- Bundles Electron + UI + Python .exe
-- Creates portable executable
-- Output: `dist/ARGUS-{version}-{arch}-portable.exe`
+**Output:** `dist/ARGUS-2.0.0-x64-portable.exe` (~150-200MB)
 
-**Expected final size:** ~150-200MB
+---
+
+#### 🍎 macOS
+
+**Build Python executable:**
+```bash
+bash build-python.sh
+# or
+npm run build-python:unix
+```
+
+**Build .dmg installer:**
+```bash
+npm run dist-mac
+```
+
+**For Universal Binary (Intel + Apple Silicon):**
+```bash
+npm run dist-mac-universal
+```
+
+**Output:** `dist/ARGUS-2.0.0.dmg` (~150-200MB)
+
+**Note:** The Python executable is built for your current architecture. For Universal builds, you may need to build on both architectures and combine them.
+
+---
+
+#### 🐧 Linux
+
+**Build Python executable:**
+```bash
+bash build-python.sh
+# or
+npm run build-python:unix
+```
+
+**Build AppImage:**
+```bash
+npm run dist-linux
+```
+
+**Output:** `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
 
 ---
 
 ## Quick Build (All-in-One)
 
+**Windows:**
 ```bash
-# Install everything and build
 npm install
 cd python && pip install -r requirements.txt && cd ..
-build-python.bat
 npm run dist-win-portable
 ```
 
-Your portable .exe will be in `dist/`
+**macOS:**
+```bash
+npm install
+cd python && pip3 install -r requirements.txt && cd ..
+npm run dist-mac
+```
+
+**Linux:**
+```bash
+npm install
+cd python && pip3 install -r requirements.txt && cd ..
+npm run dist-linux
+```
+
+Your build will be in `dist/`
 
 ---
 
