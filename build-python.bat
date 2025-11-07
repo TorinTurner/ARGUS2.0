@@ -21,6 +21,16 @@ echo [OK] Python found
 python --version
 echo.
 
+REM Check Python architecture (must be 64-bit for x64 builds)
+python build\check-arch.py
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo X 32-bit Python detected! Install 64-bit Python for x64 builds.
+    pause
+    exit /b 1
+)
+echo.
+
 REM Install PyInstaller if not present
 echo [1/4] Ensuring PyInstaller is installed...
 python -m pip install pyinstaller opencv-python numpy Pillow imageio pyyaml --quiet

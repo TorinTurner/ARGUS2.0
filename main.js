@@ -60,13 +60,32 @@ function getPythonPath() {
 
     if (fs.existsSync(pythonPath)) {
       console.log('[ARGUS] ✓ Found Python executable at:', pythonPath);
+      console.log('[ARGUS] Process architecture:', process.arch);
+      console.log('[ARGUS] Install directory:', path.dirname(resourcesPath));
 
       // Verify the _internal directory exists (contains all DLLs)
       const internalDir = path.join(resourcesPath, 'python', '_internal');
       if (fs.existsSync(internalDir)) {
         console.log('[ARGUS] ✓ Python _internal directory found with DLLs');
-        const dllCount = fs.readdirSync(internalDir).length;
-        console.log('[ARGUS] ✓ Found', dllCount, 'files in _internal directory');
+        const files = fs.readdirSync(internalDir);
+        console.log('[ARGUS] ✓ Found', files.length, 'files in _internal directory');
+
+        // Check for critical DLLs
+        const python311dll = path.join(internalDir, 'python311.dll');
+        const vcruntime = path.join(internalDir, 'vcruntime140.dll');
+
+        if (fs.existsSync(python311dll)) {
+          const stats = fs.statSync(python311dll);
+          console.log('[ARGUS] ✓ python311.dll found, size:', stats.size, 'bytes');
+        } else {
+          console.error('[ARGUS] ✗ python311.dll NOT FOUND at:', python311dll);
+        }
+
+        if (fs.existsSync(vcruntime)) {
+          console.log('[ARGUS] ✓ vcruntime140.dll found');
+        } else {
+          console.warn('[ARGUS] ✗ vcruntime140.dll NOT FOUND - VC++ Redistributable may be missing');
+        }
       } else {
         console.warn('[ARGUS] WARNING: Python _internal directory not found');
         console.warn('[ARGUS] Expected at:', internalDir);
@@ -432,14 +451,32 @@ app.whenReady().then(async () => {
   if (app.isPackaged && !pythonPath) {
     console.error('[ARGUS] CRITICAL: Python executable initialization failed');
     const { dialog } = require('electron');
-    dialog.showErrorBox(
-      'ARGUS Initialization Error',
-      'Failed to initialize Python runtime. The application may not work correctly.\n\n' +
-      'Please try:\n' +
-      '1. Running as administrator\n' +
-      '2. Extracting to a folder with write permissions\n' +
-      '3. Reinstalling the application'
-    );
+
+    // Check if installed in wrong Program Files folder (architecture mismatch)
+    const installDir = app.getPath('exe');
+    const isIn32BitFolder = installDir.includes('Program Files (x86)');
+    const arch = process.arch;
+
+    let errorMessage = 'Failed to initialize Python runtime.\n\n';
+
+    if (isIn32BitFolder && arch === 'x64') {
+      errorMessage += '⚠️ ARCHITECTURE MISMATCH DETECTED ⚠️\n\n' +
+        'This 64-bit application is installed in the 32-bit Program Files folder.\n' +
+        'Install location: ' + installDir + '\n\n' +
+        'Please:\n' +
+        '1. Uninstall ARGUS\n' +
+        '2. Reinstall to the correct location (C:\\Program Files\\ARGUS)\n' +
+        '3. Make sure to download the x64 installer\n\n';
+    } else {
+      errorMessage += 'Please try:\n' +
+        '1. Install Visual C++ Redistributable 2015-2022 (x64)\n' +
+        '   Download: https://aka.ms/vs/17/release/vc_redist.x64.exe\n\n' +
+        '2. Run ARGUS as administrator\n\n' +
+        '3. Reinstall ARGUS\n\n' +
+        '4. Check antivirus is not blocking Python DLLs\n\n';
+    }
+
+    dialog.showErrorBox('ARGUS Initialization Error', errorMessage);
   } else if (pythonPath) {
     console.log('[ARGUS] ✓ Python executable ready at:', pythonPath);
 

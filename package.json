@@ -76,7 +76,8 @@
     "win": {
       "target": "nsis",
       "requestedExecutionLevel": "asInvoker",
-      "signingHashAlgorithms": ["sha256"]
+      "signingHashAlgorithms": ["sha256"],
+      "icon": null
     },
     "nsis": {
       "oneClick": false,
@@ -91,8 +92,10 @@
       "installerIcon": null,
       "uninstallerIcon": null,
       "license": null,
-      "include": null,
-      "warningsAsErrors": false
+      "include": "build/installer.nsh",
+      "warningsAsErrors": false,
+      "unicode": true,
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "target": "AppImage",

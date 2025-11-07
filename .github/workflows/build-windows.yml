@@ -33,6 +33,9 @@ jobs:
           pip install -r requirements.txt
           cd ..
 
+      - name: Check Python architecture
+        run: python build/check-arch.py
+
       - name: Build Python executable for ${{ matrix.arch }}
         run: |
           cd python
