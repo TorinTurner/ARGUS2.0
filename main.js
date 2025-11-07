@@ -400,8 +400,9 @@ function checkPythonDependencies() {
     const pythonPath = getPythonPath();
 
     // If using bundled Python executable, skip dependency check (everything is bundled)
-    if (pythonPath.includes('python-dist') &&
-        (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'))) {
+    // Check if path ends with ARGUS_core.exe or ARGUS_core (bundled executable name)
+    // This works whether it's at root level or in python-dist subdirectory
+    if (pythonPath && (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'))) {
       console.log('[ARGUS] Using bundled Python executable - skipping dependency check');
       resolve({ available: true, version: 'Bundled', bundled: true });
       return;
@@ -500,8 +501,9 @@ function executePython(command, args) {
     let spawnArgs;
 
     // Check if using bundled Python executable (production)
-    const isBundledExe = pythonPath.includes('python-dist') &&
-                         (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'));
+    // Check if path ends with ARGUS_core.exe or ARGUS_core (bundled executable name)
+    // This works whether it's at root level or in python-dist subdirectory
+    const isBundledExe = pythonPath && (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'));
 
     if (isBundledExe) {
       // Bundled executable: Python interpreter and script are already compiled in
