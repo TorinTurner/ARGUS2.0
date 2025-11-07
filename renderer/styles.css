@@ -425,6 +425,7 @@ body {
 
 .result-actions {
   display: flex;
+  justify-content: center;
   gap: 12px;
   margin-top: 12px;
 }
