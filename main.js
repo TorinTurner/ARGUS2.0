@@ -22,8 +22,26 @@ function getAppRootDir() {
   }
 }
 
+// Get executable directory (where the .exe lives, for user-accessible files like templates)
+function getExeDir() {
+  if (app.isPackaged) {
+    // Return the directory containing the executable
+    if (process.platform === 'darwin') {
+      // macOS: app is in Contents/MacOS, go up to .app parent
+      return path.join(path.dirname(app.getPath('exe')), '..', '..');
+    } else {
+      // Windows/Linux: directory where exe lives
+      return path.dirname(app.getPath('exe'));
+    }
+  } else {
+    // In development, use the project directory
+    return __dirname;
+  }
+}
+
 // Python executable path
 function getPythonPath() {
+  const exeDir = getExeDir();
   const appRoot = getAppRootDir();
 
   // In production (packaged app), use bundled Python executable
@@ -31,15 +49,24 @@ function getPythonPath() {
     // Check for platform-specific executable names
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
-    const bundledPython = path.join(appRoot, 'python-dist', exeName);
 
+    // Try root level first (same directory as ARGUS.exe)
+    // This allows runtime_tmpdir='.' to work properly for DLL extraction
+    const rootLevelPython = path.join(exeDir, exeName);
+    if (fs.existsSync(rootLevelPython)) {
+      console.log('[ARGUS] Using root-level bundled Python executable:', rootLevelPython);
+      return rootLevelPython;
+    }
+
+    // Fallback: Check python-dist subdirectory (old location)
+    const bundledPython = path.join(appRoot, 'python-dist', exeName);
     if (fs.existsSync(bundledPython)) {
       console.log('[ARGUS] Using bundled Python executable:', bundledPython);
       return bundledPython;
-    } else {
-      console.error('[ARGUS] ERROR: Bundled Python executable not found at:', bundledPython);
-      console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
     }
+
+    console.error('[ARGUS] ERROR: Bundled Python executable not found at:', rootLevelPython, 'or', bundledPython);
+    console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
   }
 
   // In development, use system Python
@@ -54,24 +81,37 @@ function getPythonPath() {
 function ensureDirectories() {
   try {
     const appRoot = getAppRootDir();
-    const templatesDir = path.join(appRoot, 'templates');
-    const outputDir = path.join(appRoot, 'output');
+    const exeDir = getExeDir();
+    const bundledTemplatesDir = path.join(appRoot, 'templates');
+    const userTemplatesDir = path.join(exeDir, 'templates');
+    const outputDir = path.join(exeDir, 'output');
 
     console.log('[ARGUS] App root directory:', appRoot);
-    console.log('[ARGUS] Templates directory:', templatesDir);
+    console.log('[ARGUS] Exe directory:', exeDir);
+    console.log('[ARGUS] Bundled templates directory:', bundledTemplatesDir);
+    console.log('[ARGUS] User templates directory:', userTemplatesDir);
     console.log('[ARGUS] Output directory:', outputDir);
 
+    // Create output directory next to exe for easy access
     if (!fs.existsSync(outputDir)) {
       console.log('[ARGUS] Creating output directory...');
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Templates should already be in the unpacked directory, no need to copy
-    if (!fs.existsSync(templatesDir)) {
-      console.error('[ARGUS] ERROR: Templates directory not found at:', templatesDir);
-      console.error('[ARGUS] This likely means the app was not packaged correctly.');
-      console.error('[ARGUS] Check that asarUnpack includes "templates/**/*"');
+    // Create user templates directory next to exe if it doesn't exist
+    if (!fs.existsSync(userTemplatesDir)) {
+      console.log('[ARGUS] Creating user templates directory...');
+      fs.mkdirSync(userTemplatesDir, { recursive: true });
     }
+
+    // Check bundled templates exist (these come with the app)
+    if (!fs.existsSync(bundledTemplatesDir)) {
+      console.warn('[ARGUS] WARNING: Bundled templates directory not found at:', bundledTemplatesDir);
+      console.warn('[ARGUS] This likely means the app was not packaged correctly.');
+      console.warn('[ARGUS] Check that asarUnpack includes "templates/**/*"');
+    }
+
+    console.log('[ARGUS] Template search order: 1) User templates (next to exe), 2) Bundled templates');
   } catch (error) {
     console.error('[ARGUS] Error setting up directories:', error);
     // Don't throw - let app continue and show error when user tries to use features
@@ -292,13 +332,25 @@ function executePython(command, args) {
       }
     }
 
+    // Use exe directory as working directory for:
+    // 1. Python DLL extraction (runtime_tmpdir='.' in spec file)
+    // 2. Template and output file access
+    const exeDir = getExeDir();
+    const workDir = exeDir;
+
     console.log('[ARGUS] Executing Python command:', command);
     console.log('[ARGUS] Spawn command:', spawnCommand);
     console.log('[ARGUS] Spawn args:', spawnArgs);
-    console.log('[ARGUS] Working directory:', appRoot);
+    console.log('[ARGUS] Working directory:', workDir);
 
     const pythonProcess = spawn(spawnCommand, spawnArgs, {
-      cwd: appRoot  // Set working directory to app root
+      cwd: workDir,  // Set working directory to exe directory
+      env: {
+        ...process.env,
+        // Pass template directories to Python
+        ARGUS_USER_TEMPLATES: path.join(exeDir, 'templates'),
+        ARGUS_BUNDLED_TEMPLATES: path.join(appRoot, 'templates')
+      }
     });
 
     let stdout = '';

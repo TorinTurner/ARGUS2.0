@@ -19,6 +19,37 @@ import textCompression as tc
 import buildConfig as bc
 
 
+def find_template_paths(template_name):
+    """
+    Find template files in either user templates or bundled templates.
+    Returns tuple: (template_gif_path, config_path)
+    Raises FileNotFoundError if template not found in either location.
+    """
+    # Get template directories
+    user_templates = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
+    bundled_templates = os.environ.get('ARGUS_BUNDLED_TEMPLATES')
+
+    # Check user templates first
+    user_template_dir = os.path.join(user_templates, template_name)
+    user_config = os.path.join(user_template_dir, f"{template_name}.yaml")
+    user_gif = os.path.join(user_template_dir, f"{template_name}_template.gif")
+
+    if os.path.exists(user_config) and os.path.exists(user_gif):
+        return (user_gif, user_config)
+
+    # Check bundled templates
+    if bundled_templates and bundled_templates != user_templates:
+        bundled_template_dir = os.path.join(bundled_templates, template_name)
+        bundled_config = os.path.join(bundled_template_dir, f"{template_name}.yaml")
+        bundled_gif = os.path.join(bundled_template_dir, f"{template_name}_template.gif")
+
+        if os.path.exists(bundled_config) and os.path.exists(bundled_gif):
+            return (bundled_gif, bundled_config)
+
+    # Template not found in either location
+    raise FileNotFoundError(f"Template '{template_name}' not found in user or bundled templates")
+
+
 def create_template(image_path, template_name, scale_coords, crop_coords):
     """
     Create a new template from an image with CORRECT scale extraction
@@ -37,11 +68,12 @@ def create_template(image_path, template_name, scale_coords, crop_coords):
         
         # Ensure numpy array
         image = np.array(image)
-        
+
         # Create templates directory structure
-        templates_dir = './templates'
+        # Use user templates directory (next to exe) for new templates
+        templates_dir = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
         template_dir = os.path.join(templates_dir, template_name)
-        
+
         os.makedirs(template_dir, exist_ok=True)
         
         # Extract coordinates
@@ -173,18 +205,12 @@ def compress_image(image_path, template_name, dtg, output_path):
         
         # Convert to array
         image = np.array(image)
-        
-        # Create file structure
-        ext = os.path.splitext(image_path)[1].lower()
-        fp = bc.File_Structure(image_path, ext)
-        fp.update(template_name)
-        fp.dtg = dtg
-        
+
+        # Find template in user or bundled templates
+        template_gif, template_config = find_template_paths(template_name)
+
         # Load configuration
-        if not os.path.exists(fp.config):
-            raise FileNotFoundError(f"Template config not found: {fp.config}")
-        
-        with open(fp.config, 'r') as f:
+        with open(template_config, 'r') as f:
             c = yaml.safe_load(f)
         
         c['scale'] = np.array(c['scale'])
@@ -262,15 +288,12 @@ def decompress_message(message_path, output_path, template_override=None):
         
         # Select template
         template = template_override if template_override else template_from_msg
-        
+
+        # Find template in user or bundled templates
+        template_gif, template_config = find_template_paths(template)
+
         # Load template config
-        fp = bc.File_Structure(message_path, '.txt')
-        fp.update(template)
-        
-        if not os.path.exists(fp.config):
-            raise FileNotFoundError(f"Template not found: {template}")
-        
-        with open(fp.config, 'r') as f:
+        with open(template_config, 'r') as f:
             c = yaml.safe_load(f)
         
         c['scale'] = np.array(c['scale']).astype(np.uint8)
@@ -296,7 +319,7 @@ def decompress_message(message_path, output_path, template_override=None):
         plt_out = plt_out + 1  # Now matches what plot.gen produces
         
         # Use the proper restore function
-        restored_image = restore_properly(plt_out, fp, c['scale'], dtg)
+        restored_image = restore_properly(plt_out, template_gif, c['scale'], dtg)
         
         # Ensure valid image format
         restored_image = np.clip(restored_image, 0, 255).astype(np.uint8)
@@ -318,19 +341,19 @@ def decompress_message(message_path, output_path, template_override=None):
         }
 
 
-def restore_properly(plt, fp, scale, dtg):
+def restore_properly(plt, template_gif_path, scale, dtg):
     """
     Properly restore image matching the original plot.restore logic
-    
+
     CRITICAL: plot.gen produces values 1,2,3... for scale indices 0,1,2...
     So plt value 1 should use scale[0], plt value 2 should use scale[1], etc.
     """
     # Load template
-    template_data = imageio.mimread(fp.template)
+    template_data = imageio.mimread(template_gif_path)
     if isinstance(template_data, list) and len(template_data) > 0:
         out = template_data[0]
     else:
-        out = imageio.imread(fp.template)
+        out = imageio.imread(template_gif_path)
     
     out = np.array(out).copy()  # Make writable copy
     x, y = out.shape[:2]
@@ -397,53 +420,84 @@ def restore_properly(plt, fp, scale, dtg):
 
 def list_templates():
     """
-    List available templates
+    List available templates from multiple locations.
+    Searches:
+    1. User templates directory (next to exe) - from ARGUS_USER_TEMPLATES env var
+    2. Bundled templates directory (in app bundle) - from ARGUS_BUNDLED_TEMPLATES env var
+    3. Fallback: ./templates (for development/backward compatibility)
     """
     templates = []
-    templates_dir = './templates'
-    
-    if not os.path.exists(templates_dir):
-        os.makedirs(templates_dir)
-        return {'status': 'success', 'templates': []}
-    
-    try:
-        for item in os.listdir(templates_dir):
-            template_path = os.path.join(templates_dir, item)
-            
-            if os.path.isdir(template_path):
-                config_file = os.path.join(template_path, f"{item}.yaml")
-                template_file = os.path.join(template_path, f"{item}_template.gif")
-                
-                if os.path.exists(config_file) and os.path.exists(template_file):
-                    try:
-                        with open(config_file, 'r') as f:
-                            config = yaml.safe_load(f)
-                        
-                        templates.append({
-                            'name': item,
-                            'config_path': config_file,
-                            'template_path': template_file,
-                            'scale_colors': len(config.get('scale', []))
-                        })
-                    except:
-                        continue
-        
-        return {
-            'status': 'success',
-            'templates': templates
-        }
-        
-    except Exception as e:
-        return {
-            'status': 'error',
-            'error': str(e)
-        }
+    templates_found = {}  # Track templates by name to avoid duplicates
+
+    # Get template directories from environment or use defaults
+    template_dirs = []
+
+    # Priority 1: User templates (next to exe)
+    user_templates = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
+    if user_templates:
+        template_dirs.append((user_templates, 'user'))
+
+    # Priority 2: Bundled templates (in app bundle)
+    bundled_templates = os.environ.get('ARGUS_BUNDLED_TEMPLATES')
+    if bundled_templates and bundled_templates != user_templates:
+        template_dirs.append((bundled_templates, 'bundled'))
+
+    # Ensure user templates directory exists
+    if user_templates and not os.path.exists(user_templates):
+        try:
+            os.makedirs(user_templates, exist_ok=True)
+        except:
+            pass
+
+    # Search all template directories
+    for templates_dir, source in template_dirs:
+        if not os.path.exists(templates_dir):
+            continue
+
+        try:
+            for item in os.listdir(templates_dir):
+                # Skip if we already found this template (user templates take priority)
+                if item in templates_found:
+                    continue
+
+                template_path = os.path.join(templates_dir, item)
+
+                if os.path.isdir(template_path):
+                    config_file = os.path.join(template_path, f"{item}.yaml")
+                    template_file = os.path.join(template_path, f"{item}_template.gif")
+
+                    if os.path.exists(config_file) and os.path.exists(template_file):
+                        try:
+                            with open(config_file, 'r') as f:
+                                config = yaml.safe_load(f)
+
+                            template_info = {
+                                'name': item,
+                                'config_path': config_file,
+                                'template_path': template_file,
+                                'scale_colors': len(config.get('scale', [])),
+                                'source': source  # Track where template came from
+                            }
+                            templates.append(template_info)
+                            templates_found[item] = True
+                        except:
+                            continue
+        except Exception as e:
+            # Continue searching other directories even if one fails
+            continue
+
+    return {
+        'status': 'success',
+        'templates': templates
+    }
 
 
 def main():
     """Main CLI entry point"""
     # Ensure templates directory exists (especially important for portable exe)
-    os.makedirs('./templates', exist_ok=True)
+    # Use environment variable if available (set by main.js), otherwise use default
+    user_templates = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
+    os.makedirs(user_templates, exist_ok=True)
 
     if len(sys.argv) < 2:
         print(json.dumps({

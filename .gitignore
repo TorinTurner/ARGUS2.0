@@ -8,6 +8,8 @@
 /python/build
 /python/dist
 /python-dist
+/ARGUS_core
+/ARGUS_core.exe
 __pycache__
 *.pyc
 *.pyo

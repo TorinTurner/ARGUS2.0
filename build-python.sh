@@ -49,12 +49,17 @@ echo "[4/4] Preparing for Electron bundling..."
 mkdir -p python-dist
 cp python/dist/ARGUS_core python-dist/
 
+# Also copy to root level for consistency with Windows build
+# (Not strictly needed for Mac/Linux, but keeps structure consistent)
+cp python/dist/ARGUS_core ARGUS_core
+
 echo ""
 echo "========================================="
 echo "  Python Executable Built Successfully!"
 echo "========================================="
 echo ""
-echo "Location: python-dist/ARGUS_core"
+echo "Location: python-dist/ARGUS_core (legacy)"
+echo "Location: ARGUS_core (root level)"
 echo "Size:"
 ls -lh python-dist/ARGUS_core | awk '{print $5 " " $9}'
 echo ""
