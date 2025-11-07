@@ -80,7 +80,7 @@ jobs:
         run: npm install
 
       - name: Build Electron app for Windows ${{ matrix.arch }}
-        run: npx electron-builder --win --${{ matrix.arch }} --config.win.target=nsis
+        run: npx electron-builder --win --${{ matrix.arch }} --config.win.target=nsis --publish never
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
