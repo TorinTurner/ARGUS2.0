@@ -371,8 +371,8 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
   ['shore', 'sub'].forEach(mode => {
     document.getElementById(`${mode}-open-folder-btn`)?.addEventListener('click', async () => {
-      const userDataPath = await window.argus.getUserDataPath();
-      window.argus.showItemInFolder(require('path').join(userDataPath, 'output'));
+      // Pass null to open the output folder
+      window.argus.showItemInFolder(null);
     });
   });
 });

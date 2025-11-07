@@ -291,7 +291,14 @@ ipcMain.handle('save-dialog', async (event, options) => {
 
 ipcMain.handle('show-item-in-folder', async (event, filePath) => {
   const { shell } = require('electron');
-  shell.showItemInFolder(filePath);
+
+  // If no specific file path provided, open the output folder
+  if (!filePath) {
+    const outputPath = path.join(getAppRootDir(), 'output');
+    shell.openPath(outputPath);
+  } else {
+    shell.showItemInFolder(filePath);
+  }
 });
 
 ipcMain.handle('create-template', async (event, args) => {
