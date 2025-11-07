@@ -98,7 +98,7 @@
     "portable": {
       "artifactName": "${productName}-${version}-${arch}-portable.${ext}",
       "requestExecutionLevel": "user",
-      "unpackDirName": "${productName}"
+      "unpackDirName": "ARGUS"
     },
     "linux": {
       "target": "AppImage",
