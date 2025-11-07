@@ -130,12 +130,6 @@ function executePython(command, args) {
     const appRoot = getAppRootDir();
     const scriptPath = path.join(appRoot, 'python', 'ARGUS_core.py');
 
-    console.log('[ARGUS] Executing Python command:', command);
-    console.log('[ARGUS] Python path:', pythonPath);
-    console.log('[ARGUS] Script path:', scriptPath);
-    console.log('[ARGUS] Working directory:', appRoot);
-    console.log('[ARGUS] Args:', args);
-
     // Check if script exists
     if (!fs.existsSync(scriptPath)) {
       console.error('[ARGUS] ERROR: Python script not found at:', scriptPath);
@@ -145,7 +139,35 @@ function executePython(command, args) {
 
     // Set working directory to app root so Python finds templates there
     const pythonArgs = [scriptPath, command, ...args];
-    const pythonProcess = spawn(pythonPath, pythonArgs, {
+
+    // On macOS, detect hardware architecture and run Python natively
+    // This prevents arm64/x86_64 mismatch with Python packages like numpy
+    let spawnCommand = pythonPath;
+    let spawnArgs = pythonArgs;
+
+    if (process.platform === 'darwin') {
+      try {
+        const { execSync } = require('child_process');
+        const hardwareArch = execSync('uname -m').toString().trim();
+        console.log('[ARGUS] Hardware architecture:', hardwareArch);
+        console.log('[ARGUS] Electron process architecture:', process.arch);
+
+        // Run Python in native hardware architecture to avoid package conflicts
+        // Example: If on Apple Silicon (arm64) but Electron is x86_64, run Python as arm64
+        spawnCommand = 'arch';
+        spawnArgs = [`-${hardwareArch}`, pythonPath, ...pythonArgs];
+        console.log('[ARGUS] Using arch command to run Python natively');
+      } catch (error) {
+        console.error('[ARGUS] Failed to detect architecture, using default Python:', error.message);
+      }
+    }
+
+    console.log('[ARGUS] Executing Python command:', command);
+    console.log('[ARGUS] Spawn command:', spawnCommand);
+    console.log('[ARGUS] Spawn args:', spawnArgs);
+    console.log('[ARGUS] Working directory:', appRoot);
+
+    const pythonProcess = spawn(spawnCommand, spawnArgs, {
       cwd: appRoot  // Set working directory to app root
     });
 
