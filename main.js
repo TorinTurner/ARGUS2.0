@@ -10,11 +10,11 @@ function getAppRootDir() {
   if (app.isPackaged) {
     // In production, use the directory where the app is installed
     if (process.platform === 'darwin') {
-      // macOS: Go up from Resources/app to the .app directory
-      return path.join(path.dirname(app.getPath('exe')), '..');
+      // macOS: Navigate to Resources/app where unpacked files are
+      return path.join(path.dirname(app.getPath('exe')), '..', 'Resources', 'app.asar.unpacked');
     } else {
-      // Windows/Linux: Use the directory containing the executable
-      return path.dirname(app.getPath('exe'));
+      // Windows/Linux: Use resources/app.asar.unpacked
+      return path.join(path.dirname(app.getPath('exe')), 'resources', 'app.asar.unpacked');
     }
   } else {
     // In development, use the project directory
@@ -33,42 +33,32 @@ function getPythonPath() {
 
 // Ensure directories exist in app root
 function ensureDirectories() {
-  const appRoot = getAppRootDir();
-  const templatesDir = path.join(appRoot, 'templates');
-  const outputDir = path.join(appRoot, 'output');
-  
-  if (!fs.existsSync(templatesDir)) {
-    fs.mkdirSync(templatesDir, { recursive: true });
-  }
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-  
-  // Copy example templates if none exist
-  const exampleTemplates = path.join(__dirname, 'templates');
-  if (fs.existsSync(exampleTemplates) && fs.readdirSync(templatesDir).length === 0) {
-    copyDir(exampleTemplates, templatesDir);
+  try {
+    const appRoot = getAppRootDir();
+    const templatesDir = path.join(appRoot, 'templates');
+    const outputDir = path.join(appRoot, 'output');
+
+    console.log('[ARGUS] App root directory:', appRoot);
+    console.log('[ARGUS] Templates directory:', templatesDir);
+    console.log('[ARGUS] Output directory:', outputDir);
+
+    if (!fs.existsSync(outputDir)) {
+      console.log('[ARGUS] Creating output directory...');
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Templates should already be in the unpacked directory, no need to copy
+    if (!fs.existsSync(templatesDir)) {
+      console.error('[ARGUS] ERROR: Templates directory not found at:', templatesDir);
+      console.error('[ARGUS] This likely means the app was not packaged correctly.');
+      console.error('[ARGUS] Check that asarUnpack includes "templates/**/*"');
+    }
+  } catch (error) {
+    console.error('[ARGUS] Error setting up directories:', error);
+    // Don't throw - let app continue and show error when user tries to use features
   }
 }
 
-function copyDir(src, dest) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
-  
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  
-  for (let entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    
-    if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  }
-}
 
 // Create main window
 function createWindow() {
@@ -107,10 +97,9 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Open DevTools in development only
-  if (!app.isPackaged && process.env.NODE_ENV !== 'production') {
-    mainWindow.webContents.openDevTools();
-  }
+  // Open DevTools for debugging (even in packaged app for now)
+  // TEMPORARY: Remove this after debugging is complete
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -138,50 +127,71 @@ app.on('activate', () => {
 function executePython(command, args) {
   return new Promise((resolve, reject) => {
     const pythonPath = getPythonPath();
-    const scriptPath = path.join(__dirname, 'python', 'ARGUS_core.py');
-    
+    const appRoot = getAppRootDir();
+    const scriptPath = path.join(appRoot, 'python', 'ARGUS_core.py');
+
+    console.log('[ARGUS] Executing Python command:', command);
+    console.log('[ARGUS] Python path:', pythonPath);
+    console.log('[ARGUS] Script path:', scriptPath);
+    console.log('[ARGUS] Working directory:', appRoot);
+    console.log('[ARGUS] Args:', args);
+
+    // Check if script exists
+    if (!fs.existsSync(scriptPath)) {
+      console.error('[ARGUS] ERROR: Python script not found at:', scriptPath);
+      reject(new Error(`Python script not found at: ${scriptPath}`));
+      return;
+    }
+
     // Set working directory to app root so Python finds templates there
     const pythonArgs = [scriptPath, command, ...args];
     const pythonProcess = spawn(pythonPath, pythonArgs, {
-      cwd: getAppRootDir()  // Set working directory to app root
+      cwd: appRoot  // Set working directory to app root
     });
-    
+
     let stdout = '';
     let stderr = '';
-    
+
     pythonProcess.stdout.on('data', (data) => {
       stdout += data.toString();
     });
-    
+
     pythonProcess.stderr.on('data', (data) => {
       stderr += data.toString();
+      console.log('[ARGUS] Python stderr:', data.toString());
     });
-    
+
     pythonProcess.on('close', (code) => {
+      console.log('[ARGUS] Python process closed with code:', code);
+
       if (code !== 0) {
+        console.error('[ARGUS] Python error:', stderr);
         reject(new Error(`Python error: ${stderr}`));
         return;
       }
-      
+
       try {
         // Handle empty stdout
         if (!stdout.trim()) {
           reject(new Error('No output from Python script'));
           return;
         }
-        
+
         const result = JSON.parse(stdout);
         if (result.status === 'error') {
           reject(new Error(result.error));
         } else {
+          console.log('[ARGUS] Python command succeeded');
           resolve(result);
         }
       } catch (error) {
+        console.error('[ARGUS] Failed to parse Python output:', stdout);
         reject(new Error(`Failed to parse Python output: ${stdout}`));
       }
     });
-    
+
     pythonProcess.on('error', (error) => {
+      console.error('[ARGUS] Failed to start Python process:', error);
       reject(new Error(`Failed to start Python: ${error.message}`));
     });
   });
