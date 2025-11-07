@@ -1,0 +1,94 @@
+name: Build Windows Executables
+
+on:
+  workflow_dispatch:  # Allow manual trigger
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'python/**'
+      - 'build-python.bat'
+      - '.github/workflows/build-windows.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          cd python
+          pip install -r requirements.txt
+          cd ..
+
+      - name: Build Python executable for ${{ matrix.arch }}
+        run: |
+          cd python
+          python -m PyInstaller ARGUS_core.spec --clean
+          cd ..
+        env:
+          PYINSTALLER_TARGET_ARCH: ${{ matrix.arch }}
+
+      - name: Create python-dist directory
+        run: |
+          mkdir -p python-dist
+          copy python\dist\ARGUS_core.exe python-dist\
+
+      - name: Upload Python executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-python-${{ matrix.arch }}
+          path: python-dist/ARGUS_core.exe
+          retention-days: 30
+
+  build-electron:
+    needs: build-windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Download Python executable
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-python-${{ matrix.arch }}
+          path: python-dist/
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build Electron app for Windows ${{ matrix.arch }}
+        run: npx electron-builder --win --${{ matrix.arch }} --config.win.target=portable
+
+      - name: Upload Windows portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARGUS-Windows-${{ matrix.arch }}-portable
+          path: dist/*.exe
+          retention-days: 90
+
+      - name: Display build info
+        run: |
+          echo "Build complete for Windows ${{ matrix.arch }}"
+          dir dist\
