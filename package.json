@@ -62,15 +62,27 @@
         {
           "target": "nsis",
           "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "arm64"]
         }
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "signingHashAlgorithms": ["sha256"]
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "runAfterFinish": false,
+      "differentialPackage": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-portable.${ext}"
     },
     "linux": {
       "target": "AppImage",
