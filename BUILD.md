@@ -18,6 +18,52 @@ ARGUS can be built as a self-contained application that bundles:
 
 ---
 
+## Quick Start for M1/M2 Mac Users 🍎
+
+**Building on Apple Silicon (M1/M2/M3)?** Here's what you need to know:
+
+### For macOS DMG (Native - Works Great!)
+```bash
+npm install
+cd python && pip3 install -r requirements.txt && cd ..
+npm run dist-mac
+```
+✅ Builds natively on your Mac
+✅ Output: `dist/ARGUS-2.0.0.dmg`
+
+### For Windows .exe (Cross-Platform Build)
+
+**Recommended: Use GitHub Actions**
+```bash
+# Install GitHub CLI (one time)
+brew install gh
+gh auth login
+
+# Trigger Windows build
+npm run build-python:win-cross
+# → Choose option [1]
+
+# Download the artifacts when done
+gh run download
+```
+✅ Builds on real Windows servers (x64 + ARM64)
+✅ Most reliable, no Docker needed
+✅ Free for public repos
+
+**Alternative: Local Docker Build (Experimental)**
+```bash
+# Requires Docker Desktop installed and running
+npm run build-python:win-cross
+# → Choose option [2]
+
+# Then build the Electron app
+npm run dist-win-from-mac
+```
+⚠️ May have compatibility issues
+⚠️ First run takes 10-15 minutes
+
+---
+
 ## Prerequisites (For Building Only)
 
 You need these tools **only to BUILD** the application. The final package will run with NO dependencies installed.
@@ -82,6 +128,8 @@ Choose the appropriate command for your target platform:
 
 #### 🪟 Windows
 
+##### Building on Windows (Native)
+
 **Build Python executable:**
 ```bash
 build-python.bat
@@ -93,6 +141,48 @@ npm run dist-win-portable
 ```
 
 **Output:** `dist/ARGUS-2.0.0-x64-portable.exe` (~150-200MB)
+
+##### Building Windows .exe from macOS/Linux (Cross-Platform)
+
+Since you're on a Mac (or Linux), you have **three options** to build Windows executables:
+
+**Option 1: GitHub Actions (Recommended)**
+```bash
+npm run build-python:win-cross
+# Choose option [1] when prompted
+# This triggers an automated build on GitHub's Windows servers
+```
+- ✅ Most reliable - builds on real Windows
+- ✅ Supports both x64 and ARM64
+- ✅ Free for public repositories
+- ⚠️ Requires: GitHub CLI (`brew install gh`)
+
+**Option 2: Docker + Wine (Experimental)**
+```bash
+npm run build-python:win-cross
+# Choose option [2] when prompted
+```
+Then build the Electron app:
+```bash
+npm run dist-win-from-mac       # x64 portable
+npm run dist-win-from-mac-arm64 # ARM64 portable
+```
+- ✅ Builds locally on your Mac
+- ⚠️ Requires: Docker Desktop
+- ⚠️ May have compatibility issues
+- ⚠️ First run takes 10-15 minutes
+
+**Option 3: Use a Remote Windows Machine**
+```bash
+npm run build-python:win-cross
+# Choose option [3] for instructions
+```
+
+**Quick command (for automation):**
+```bash
+# Non-interactive Docker build
+BUILD_METHOD=docker npm run dist-win-from-mac
+```
 
 ---
 
@@ -306,50 +396,40 @@ ARGUS-portable.exe (unpacks to temp at runtime)
 
 ## CI/CD Integration
 
-Example GitHub Actions workflow:
+### GitHub Actions Workflow (Included)
 
-```yaml
-name: Build ARGUS Portable
+This repository includes a GitHub Actions workflow at `.github/workflows/build-windows.yml` that automatically builds Windows executables (x64 and ARM64) on push or manually.
 
-on:
-  push:
-    tags:
-      - 'v*'
+**Trigger manually:**
+```bash
+# Using GitHub CLI (recommended)
+gh workflow run build-windows.yml
 
-jobs:
-  build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          npm install
-          cd python
-          pip install -r requirements.txt
-
-      - name: Build Python executable
-        run: build-python.bat
-
-      - name: Build Electron app
-        run: npm run dist-win-portable
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ARGUS-portable
-          path: dist/*.exe
+# Or via the GitHub web interface:
+# Go to Actions → Build Windows Executables → Run workflow
 ```
+
+**Automatic triggers:**
+- Push to `main` branch
+- Push to any `claude/**` branch
+- Changes to Python files or build scripts
+
+**What it builds:**
+- ✅ Windows x64 portable .exe
+- ✅ Windows ARM64 portable .exe
+- ✅ Both Python executables and full Electron apps
+- ✅ Artifacts available for download for 90 days
+
+**Download artifacts:**
+```bash
+# List recent runs
+gh run list --workflow=build-windows.yml
+
+# Download artifacts from latest run
+gh run download
+```
+
+Or download from the GitHub Actions tab in your browser.
 
 ---
 
