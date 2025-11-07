@@ -24,7 +24,23 @@ function getAppRootDir() {
 
 // Python executable path
 function getPythonPath() {
-  // Always use system Python (works in dev and production)
+  const appRoot = getAppRootDir();
+
+  // In production (packaged app), use bundled Python executable
+  if (app.isPackaged) {
+    const bundledPython = path.join(appRoot, 'python-dist', 'ARGUS_core.exe');
+
+    if (fs.existsSync(bundledPython)) {
+      console.log('[ARGUS] Using bundled Python executable:', bundledPython);
+      return bundledPython;
+    } else {
+      console.error('[ARGUS] ERROR: Bundled Python executable not found at:', bundledPython);
+      console.error('[ARGUS] This is a packaging issue. The app will not work correctly.');
+    }
+  }
+
+  // In development, use system Python
+  console.log('[ARGUS] Development mode - using system Python');
   if (process.platform === 'darwin' || process.platform === 'linux') {
     return 'python3';
   }
@@ -124,42 +140,150 @@ app.on('activate', () => {
   }
 });
 
+// Check Python dependencies
+function checkPythonDependencies() {
+  return new Promise((resolve, reject) => {
+    const pythonPath = getPythonPath();
+
+    // If using bundled Python executable, skip dependency check (everything is bundled)
+    if (pythonPath.endsWith('ARGUS_core.exe')) {
+      console.log('[ARGUS] Using bundled Python executable - skipping dependency check');
+      resolve({ available: true, version: 'Bundled', bundled: true });
+      return;
+    }
+
+    // Development mode: Check if Python and dependencies are available
+    // First check if Python is available
+    const checkPython = spawn(pythonPath, ['--version']);
+
+    let pythonFound = false;
+    let pythonVersion = '';
+
+    checkPython.stdout.on('data', (data) => {
+      pythonVersion = data.toString().trim();
+      pythonFound = true;
+    });
+
+    checkPython.stderr.on('data', (data) => {
+      pythonVersion = data.toString().trim();
+      pythonFound = true;
+    });
+
+    checkPython.on('error', () => {
+      reject({
+        available: false,
+        missing: 'python',
+        message: 'Python is not installed or not in PATH.\n\nPlease install Python 3.8+ from https://python.org/\n\nMake sure to check "Add Python to PATH" during installation.'
+      });
+    });
+
+    checkPython.on('close', (code) => {
+      if (!pythonFound) {
+        reject({
+          available: false,
+          missing: 'python',
+          message: 'Python is not installed or not in PATH.\n\nPlease install Python 3.8+ from https://python.org/\n\nMake sure to check "Add Python to PATH" during installation.'
+        });
+        return;
+      }
+
+      // Now check for required packages
+      const checkModules = spawn(pythonPath, [
+        '-c',
+        'import cv2, numpy, imageio, yaml; print("OK")'
+      ]);
+
+      let modulesOk = false;
+      let errorOutput = '';
+
+      checkModules.stdout.on('data', (data) => {
+        if (data.toString().includes('OK')) {
+          modulesOk = true;
+        }
+      });
+
+      checkModules.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      checkModules.on('close', () => {
+        if (modulesOk) {
+          resolve({ available: true, version: pythonVersion });
+        } else {
+          let missingModule = 'unknown';
+          if (errorOutput.includes('cv2')) missingModule = 'opencv-python';
+          else if (errorOutput.includes('numpy')) missingModule = 'numpy';
+          else if (errorOutput.includes('imageio')) missingModule = 'imageio';
+          else if (errorOutput.includes('yaml')) missingModule = 'pyyaml';
+
+          reject({
+            available: false,
+            missing: missingModule,
+            message: `Python is installed but required packages are missing.\n\nPlease install dependencies by running:\n\npython -m pip install opencv-python numpy Pillow imageio pyyaml\n\nOr run the setup script:\n  Windows: setup.bat\n  Mac/Linux: ./setup.sh`
+          });
+        }
+      });
+
+      checkModules.on('error', () => {
+        reject({
+          available: false,
+          missing: 'modules',
+          message: 'Failed to check Python modules.\n\nPlease install dependencies:\npython -m pip install opencv-python numpy Pillow imageio pyyaml'
+        });
+      });
+    });
+  });
+}
+
 // Execute Python command
 function executePython(command, args) {
   return new Promise((resolve, reject) => {
     const pythonPath = getPythonPath();
     const appRoot = getAppRootDir();
-    const scriptPath = path.join(appRoot, 'python', 'ARGUS_core.py');
 
-    // Check if script exists
-    if (!fs.existsSync(scriptPath)) {
-      console.error('[ARGUS] ERROR: Python script not found at:', scriptPath);
-      reject(new Error(`Python script not found at: ${scriptPath}`));
-      return;
-    }
-
-    // Set working directory to app root so Python finds templates there
-    const pythonArgs = [scriptPath, command, ...args];
-
-    // On macOS, detect hardware architecture and run Python natively
-    // This prevents arm64/x86_64 mismatch with Python packages like numpy
     let spawnCommand = pythonPath;
-    let spawnArgs = pythonArgs;
+    let spawnArgs;
 
-    if (process.platform === 'darwin') {
-      try {
-        const { execSync } = require('child_process');
-        const hardwareArch = execSync('uname -m').toString().trim();
-        console.log('[ARGUS] Hardware architecture:', hardwareArch);
-        console.log('[ARGUS] Electron process architecture:', process.arch);
+    // Check if using bundled Python executable (production)
+    const isBundledExe = pythonPath.endsWith('ARGUS_core.exe');
 
-        // Run Python in native hardware architecture to avoid package conflicts
-        // Example: If on Apple Silicon (arm64) but Electron is x86_64, run Python as arm64
-        spawnCommand = 'arch';
-        spawnArgs = [`-${hardwareArch}`, pythonPath, ...pythonArgs];
-        console.log('[ARGUS] Using arch command to run Python natively');
-      } catch (error) {
-        console.error('[ARGUS] Failed to detect architecture, using default Python:', error.message);
+    if (isBundledExe) {
+      // Bundled executable: Python interpreter and script are already compiled in
+      // Just pass the command and arguments directly
+      spawnArgs = [command, ...args];
+      console.log('[ARGUS] Using bundled Python executable');
+    } else {
+      // Development mode: Call Python interpreter with script
+      const scriptPath = path.join(appRoot, 'python', 'ARGUS_core.py');
+
+      // Check if script exists
+      if (!fs.existsSync(scriptPath)) {
+        console.error('[ARGUS] ERROR: Python script not found at:', scriptPath);
+        reject(new Error(`Python script not found at: ${scriptPath}`));
+        return;
+      }
+
+      // Set working directory to app root so Python finds templates there
+      const pythonArgs = [scriptPath, command, ...args];
+      spawnArgs = pythonArgs;
+
+      // On macOS, detect hardware architecture and run Python natively
+      // This prevents arm64/x86_64 mismatch with Python packages like numpy
+      if (process.platform === 'darwin') {
+        try {
+          const { execSync } = require('child_process');
+          const hardwareArch = execSync('uname -m').toString().trim();
+          console.log('[ARGUS] Hardware architecture:', hardwareArch);
+          console.log('[ARGUS] Electron process architecture:', process.arch);
+
+          // Run Python in native hardware architecture to avoid package conflicts
+          // Example: If on Apple Silicon (arm64) but Electron is x86_64, run Python as arm64
+          spawnCommand = 'arch';
+          spawnArgs = [`-${hardwareArch}`, pythonPath, ...pythonArgs];
+          console.log('[ARGUS] Using arch command to run Python natively');
+        } catch (error) {
+          console.error('[ARGUS] Failed to detect architecture, using default Python:', error.message);
+        }
       }
     }
 
@@ -332,5 +456,15 @@ ipcMain.handle('save-temp-message', async (event, text) => {
   } catch (error) {
     console.error('Save temp message error:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('check-python-dependencies', async () => {
+  try {
+    const result = await checkPythonDependencies();
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Python dependency check failed:', error);
+    return { success: false, error: error };
   }
 });

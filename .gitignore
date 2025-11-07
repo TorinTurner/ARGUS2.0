@@ -1,2 +1,25 @@
+# Node.js dependencies
 /node_modules
+
+# Electron build output
 /dist
+
+# Python build artifacts
+/python/build
+/python/dist
+/python-dist
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller spec generated files
+*.spec.backup
+
+# Output directory (user-generated files)
+/output
+
+# Temporary files
+*.log
+.DS_Store
+Thumbs.db

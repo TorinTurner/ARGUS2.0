@@ -1,0 +1,9 @@
+# ARGUS Python Dependencies
+# These are bundled into the standalone executable using PyInstaller
+
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+imageio>=2.31.0
+PyYAML>=6.0
+pyinstaller>=6.0.0
