@@ -4,13 +4,24 @@
 # All DLLs and dependencies are extracted during build, not at runtime
 # Perfect for installer-based distribution - eliminates runtime extraction issues
 
+from PyInstaller.utils.hooks import collect_data_files
+
 block_cipher = None
+
+# Collect package metadata to fix importlib.metadata.PackageNotFoundError
+# imageio and other packages check their version using importlib.metadata
+datas = []
+datas += collect_data_files('imageio')
+datas += collect_data_files('pillow')
+datas += collect_data_files('opencv-python')
+datas += collect_data_files('numpy')
+datas += collect_data_files('pyyaml')
 
 a = Analysis(
     ['ARGUS_core.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[
         'cv2',
         'numpy',
