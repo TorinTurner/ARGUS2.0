@@ -102,9 +102,19 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        arch: [x64]  # Only test x64 for speed
+        arch: [x64]  # Test both architectures to verify compatibility
+        # Note: GitHub Actions windows-latest runners are x64
+        # ARM64 builds can be tested for installation but won't run natively
 
     steps:
+      - name: Check system architecture
+        run: |
+          Write-Host "=== System Information ==="
+          Write-Host "OS: $(Get-WmiObject -Class Win32_OperatingSystem | Select-Object -ExpandProperty Caption)"
+          Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
+          Write-Host "Processor: $(Get-WmiObject -Class Win32_Processor | Select-Object -ExpandProperty Name)"
+          Write-Host "=========================="
+
       - name: Download installer
         uses: actions/download-artifact@v4
         with:
@@ -160,7 +170,7 @@ jobs:
             exit 1
           }
 
-      - name: Test Python executable
+      - name: Test Python executable directly
         run: |
           $pythonExe = "$env:LOCALAPPDATA\Programs\ARGUS\resources\python\ARGUS_core.exe"
           Write-Host "Testing Python executable..."
@@ -179,6 +189,57 @@ jobs:
             exit 1
           }
 
+      - name: Test list-templates command
+        run: |
+          $pythonExe = "$env:LOCALAPPDATA\Programs\ARGUS\resources\python\ARGUS_core.exe"
+          cd "$env:LOCALAPPDATA\Programs\ARGUS\resources\python"
+
+          Write-Host "Testing list-templates command..."
+          $output = & $pythonExe list-templates 2>&1
+          Write-Host "Output: $output"
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "[OK] list-templates command works!"
+          } else {
+            Write-Host "[ERROR] list-templates failed with exit code: $LASTEXITCODE"
+            exit 1
+          }
+
+      - name: Launch ARGUS GUI (headless test)
+        run: |
+          $argusExe = "$env:LOCALAPPDATA\Programs\ARGUS\ARGUS.exe"
+          Write-Host "Launching ARGUS GUI for 10 seconds..."
+
+          # Start ARGUS in background
+          $process = Start-Process -FilePath $argusExe -PassThru
+
+          # Wait 10 seconds for it to initialize
+          Start-Sleep -Seconds 10
+
+          # Check if process is still running (didn't crash)
+          if ($process.HasExited) {
+            Write-Host "[ERROR] ARGUS crashed during startup!"
+            Write-Host "Exit code: $($process.ExitCode)"
+            exit 1
+          } else {
+            Write-Host "[OK] ARGUS launched successfully and is running!"
+            # Kill the process
+            Stop-Process -Id $process.Id -Force
+            Write-Host "[OK] ARGUS stopped cleanly"
+          }
+
+      - name: Capture ARGUS logs
+        if: always()
+        run: |
+          # Check for any log files created
+          $appData = "$env:APPDATA\ARGUS"
+          if (Test-Path $appData) {
+            Write-Host "ARGUS app data found at: $appData"
+            Get-ChildItem $appData -Recurse | ForEach-Object { Write-Host $_.FullName }
+          } else {
+            Write-Host "No ARGUS app data directory found"
+          }
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -186,4 +247,5 @@ jobs:
           name: test-results-${{ matrix.arch }}
           path: |
             ${{ env.LOCALAPPDATA }}\Programs\ARGUS\README-DLL-Issues.txt
+            ${{ env.APPDATA }}\ARGUS\**\*.log
           retention-days: 7
