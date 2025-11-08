@@ -44,13 +44,19 @@ function saveSettings(settings) {
 
 /**
  * Get default settings based on exe location
- * @param {string} exeDir - Directory where exe is located
+ * @param {string} exeDir - Directory where exe is located (for reference only)
  * @returns {object} Default settings
  */
 function getDefaultSettings(exeDir) {
+  // Use user data directory instead of Program Files to avoid permission issues
+  // Windows: C:\Users\<username>\AppData\Roaming\ARGUS
+  // macOS: ~/Library/Application Support/ARGUS
+  // Linux: ~/.config/ARGUS
+  const userDataDir = app.getPath('userData');
+
   return {
-    templatesDir: path.join(exeDir, 'templates'),
-    outputDir: path.join(exeDir, 'output'),
+    templatesDir: path.join(userDataDir, 'templates'),
+    outputDir: path.join(userDataDir, 'output'),
     firstRun: false
   };
 }

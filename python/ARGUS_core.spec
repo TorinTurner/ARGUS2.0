@@ -4,18 +4,28 @@
 # All DLLs and dependencies are extracted during build, not at runtime
 # Perfect for installer-based distribution - eliminates runtime extraction issues
 
+from PyInstaller.utils.hooks import copy_metadata
+
 block_cipher = None
+
+# Collect metadata for packages that check their version at runtime
+datas = []
+datas += copy_metadata('imageio')
+datas += copy_metadata('pillow')
+datas += copy_metadata('numpy')
+datas += copy_metadata('pyyaml')
 
 a = Analysis(
     ['ARGUS_core.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[
         'cv2',
         'numpy',
         'imageio',
         'imageio.v2',
+        'imageio_ffmpeg',
         'yaml',
         'PIL',
         'PIL.Image',
