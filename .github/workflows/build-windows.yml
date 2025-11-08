@@ -96,3 +96,94 @@ jobs:
         run: |
           echo "Build complete for Windows ${{ matrix.arch }}"
           dir dist\
+
+  test-installer:
+    needs: build-electron
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64]  # Only test x64 for speed
+
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v4
+        with:
+          name: ARGUS-Windows-${{ matrix.arch }}-installer
+          path: installer/
+
+      - name: Install Visual C++ Redistributable
+        run: |
+          Write-Host "Installing Visual C++ Redistributable..."
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile "vc_redist.x64.exe"
+          Start-Process -FilePath "vc_redist.x64.exe" -ArgumentList "/install", "/quiet", "/norestart" -Wait
+          Write-Host "VC++ Redistributable installed"
+
+      - name: Install ARGUS silently
+        run: |
+          $installer = Get-ChildItem installer\*.exe | Select-Object -First 1
+          Write-Host "Installing: $($installer.FullName)"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+          Write-Host "Installation complete"
+
+      - name: Check installation
+        run: |
+          $installPath = "$env:LOCALAPPDATA\Programs\ARGUS"
+          Write-Host "Checking installation at: $installPath"
+
+          if (Test-Path "$installPath\ARGUS.exe") {
+            Write-Host "[OK] ARGUS.exe found"
+          } else {
+            Write-Host "[ERROR] ARGUS.exe not found!"
+            exit 1
+          }
+
+          if (Test-Path "$installPath\resources\python\ARGUS_core.exe") {
+            Write-Host "[OK] Python exe found"
+          } else {
+            Write-Host "[ERROR] Python exe not found!"
+            exit 1
+          }
+
+          if (Test-Path "$installPath\resources\python\_internal") {
+            $dllCount = (Get-ChildItem "$installPath\resources\python\_internal").Count
+            Write-Host "[OK] _internal directory found with $dllCount files"
+          } else {
+            Write-Host "[ERROR] _internal directory not found!"
+            exit 1
+          }
+
+          if (Test-Path "$installPath\resources\python\_internal\python311.dll") {
+            $size = (Get-Item "$installPath\resources\python\_internal\python311.dll").Length
+            Write-Host "[OK] python311.dll found, size: $size bytes"
+          } else {
+            Write-Host "[ERROR] python311.dll not found!"
+            exit 1
+          }
+
+      - name: Test Python executable
+        run: |
+          $pythonExe = "$env:LOCALAPPDATA\Programs\ARGUS\resources\python\ARGUS_core.exe"
+          Write-Host "Testing Python executable..."
+          Write-Host "Working directory: $env:LOCALAPPDATA\Programs\ARGUS\resources\python"
+
+          cd "$env:LOCALAPPDATA\Programs\ARGUS\resources\python"
+
+          $output = & $pythonExe --version 2>&1
+          Write-Host "Output: $output"
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "[OK] Python executable works!"
+          } else {
+            Write-Host "[ERROR] Python executable failed with exit code: $LASTEXITCODE"
+            Write-Host "This indicates a DLL loading problem"
+            exit 1
+          }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.arch }}
+          path: |
+            ${{ env.LOCALAPPDATA }}\Programs\ARGUS\README-DLL-Issues.txt
+          retention-days: 7
