@@ -183,8 +183,8 @@ async function showSetupDialog() {
   <p>Choose where to store your templates and output files:</p>
 
   <div class="option selected" id="default" onclick="selectOption('default')">
-    <h3>📁 Next to Application (Recommended)</h3>
-    <p>Store files in the same folder as ARGUS.exe for easy access</p>
+    <h3>📁 User Data Folder (Recommended)</h3>
+    <p>Store files in your user profile folder (no admin permissions needed)</p>
     <span class="path">Templates: ${defaultSettings.templatesDir}</span>
     <span class="path">Output: ${defaultSettings.outputDir}</span>
   </div>
@@ -297,11 +297,43 @@ function ensureDirectories() {
     if (!fs.existsSync(bundledTemplatesDir)) {
       console.warn('[ARGUS] WARNING: Bundled templates directory not found at:', bundledTemplatesDir);
       console.warn('[ARGUS] This likely means the app was not packaged correctly.');
+    } else {
+      // Copy bundled templates to user directory if user templates is empty
+      const userTemplateFiles = fs.readdirSync(userSettings.templatesDir);
+      if (userTemplateFiles.length === 0) {
+        console.log('[ARGUS] Copying bundled templates to user directory...');
+        copyDirectory(bundledTemplatesDir, userSettings.templatesDir);
+        console.log('[ARGUS] ✓ Bundled templates copied successfully');
+      }
     }
 
     console.log('[ARGUS] Template search order: 1) User templates, 2) Bundled templates');
   } catch (error) {
     console.error('[ARGUS] Error setting up directories:', error);
+  }
+}
+
+// Helper function to recursively copy directory
+function copyDirectory(src, dest) {
+  // Create destination directory
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+
+  // Read all files and subdirectories
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      // Recursively copy subdirectory
+      copyDirectory(srcPath, destPath);
+    } else {
+      // Copy file
+      fs.copyFileSync(srcPath, destPath);
+    }
   }
 }
 
