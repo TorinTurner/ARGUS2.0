@@ -351,10 +351,24 @@ async function verifyPythonExecutable(pythonPath) {
     const pythonDir = path.dirname(pythonPath);
     console.log('[ARGUS] Python directory:', pythonDir);
 
-    const testProcess = spawn(pythonPath, ['--version'], {
+    // Check if this is a bundled executable (ARGUS_core.exe)
+    const isBundledExe = pythonPath && (pythonPath.endsWith('ARGUS_core.exe') || pythonPath.endsWith('ARGUS_core'));
+
+    // For bundled executable, use 'list-templates' command which should always work
+    // For regular Python, use --version
+    const testArgs = isBundledExe ? ['list-templates'] : ['--version'];
+
+    console.log('[ARGUS] Test command:', testArgs[0]);
+
+    const testProcess = spawn(pythonPath, testArgs, {
       cwd: pythonDir,  // Run in Python's directory so DLLs can be found
-      timeout: 5000,  // 5 second timeout
-      env: process.env  // Use default environment
+      timeout: 10000,  // 10 second timeout (increased for list-templates)
+      env: {
+        ...process.env,
+        // For bundled exe, provide minimal env vars for list-templates to work
+        ARGUS_USER_TEMPLATES: path.join(app.getPath('userData'), 'templates'),
+        ARGUS_BUNDLED_TEMPLATES: path.join(getAppRootDir(), 'templates')
+      }
     });
 
     let stdout = '';
@@ -372,42 +386,84 @@ async function verifyPythonExecutable(pythonPath) {
       if (code === 0) {
         console.log('[ARGUS] ✓ Python executable verification successful');
         console.log('[ARGUS] DLLs loaded correctly, Python is ready');
+        console.log('[ARGUS] Test output:', stdout.substring(0, 100));
         resolve(true);
       } else {
         console.error('[ARGUS] ✗ Python executable verification failed with code:', code);
         console.error('[ARGUS] stdout:', stdout);
         console.error('[ARGUS] stderr:', stderr);
+        console.error('[ARGUS] Python path:', pythonPath);
+        console.error('[ARGUS] Python exists:', fs.existsSync(pythonPath));
 
         const { dialog } = require('electron');
-        dialog.showErrorBox(
-          'Python Runtime Error',
-          'Python executable verification failed.\n\n' +
-          'Error details:\n' + (stderr || stdout || 'Unknown error') + '\n\n' +
-          'Troubleshooting:\n' +
-          '1. Reinstall ARGUS (the installation may be corrupted)\n' +
-          '2. Install Visual C++ Redistributable 2015-2022\n   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
-          '3. Check antivirus/firewall settings\n' +
-          '4. Try running as administrator\n' +
-          '5. Install to a different location'
-        );
+
+        // Build detailed error message
+        let errorDetails = '';
+        if (stderr) errorDetails = stderr;
+        else if (stdout) errorDetails = stdout;
+        else errorDetails = `Exit code: ${code}\nNo error output captured`;
+
+        const response = dialog.showMessageBoxSync({
+          type: 'warning',
+          title: 'Python Runtime Warning',
+          message: 'Python executable verification failed',
+          detail: 'Error details:\n' + errorDetails + '\n\n' +
+            'Python path: ' + pythonPath + '\n' +
+            'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
+            'Troubleshooting:\n' +
+            '1. Install Visual C++ Redistributable 2015-2022\n' +
+            '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
+            '2. Check antivirus/firewall settings\n' +
+            '3. Try running as administrator\n' +
+            '4. Reinstall ARGUS to a different location\n\n' +
+            'Click "Continue Anyway" to try using ARGUS despite this warning.\n' +
+            'Some features may not work correctly.',
+          buttons: ['Continue Anyway', 'Exit'],
+          defaultId: 1,
+          cancelId: 1
+        });
+
+        if (response === 1) {
+          // User chose to exit
+          app.quit();
+        }
         resolve(false);
       }
     });
 
     testProcess.on('error', (error) => {
       console.error('[ARGUS] ✗ Failed to start Python process:', error.message);
+      console.error('[ARGUS] Error code:', error.code);
+      console.error('[ARGUS] Error stack:', error.stack);
+      console.error('[ARGUS] Python path:', pythonPath);
+      console.error('[ARGUS] Python exists:', fs.existsSync(pythonPath));
 
       const { dialog } = require('electron');
-      dialog.showErrorBox(
-        'Python Runtime Error',
-        'Failed to start Python executable.\n\n' +
-        'Error: ' + error.message + '\n\n' +
-        'Troubleshooting:\n' +
-        '1. Reinstall ARGUS (the installation may be corrupted)\n' +
-        '2. Install Visual C++ Redistributable 2015-2022\n   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
-        '3. Check antivirus/firewall settings\n' +
-        '4. Try running as administrator'
-      );
+      const response = dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Python Runtime Warning',
+        message: 'Failed to start Python executable',
+        detail: 'Error: ' + error.message + '\n' +
+          'Error code: ' + (error.code || 'unknown') + '\n' +
+          'Python path: ' + pythonPath + '\n' +
+          'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
+          'Troubleshooting:\n' +
+          '1. Install Visual C++ Redistributable 2015-2022\n' +
+          '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
+          '2. Check antivirus/firewall settings\n' +
+          '3. Try running as administrator\n' +
+          '4. Reinstall ARGUS to a different location\n\n' +
+          'Click "Continue Anyway" to try using ARGUS despite this warning.\n' +
+          'Some features may not work correctly.',
+        buttons: ['Continue Anyway', 'Exit'],
+        defaultId: 1,
+        cancelId: 1
+      });
+
+      if (response === 1) {
+        // User chose to exit
+        app.quit();
+      }
       resolve(false);
     });
   });
@@ -514,7 +570,11 @@ app.whenReady().then(async () => {
 
     // Verify Python exe works by testing DLL loading
     if (app.isPackaged) {
-      await verifyPythonExecutable(pythonPath);
+      const verificationSuccess = await verifyPythonExecutable(pythonPath);
+      if (!verificationSuccess) {
+        console.warn('[ARGUS] Python verification failed, but continuing anyway...');
+        console.warn('[ARGUS] Some features may not work correctly.');
+      }
     }
   }
 
