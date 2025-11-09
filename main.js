@@ -49,10 +49,12 @@ function getPythonPath() {
     // Windows: ARGUS_core.exe, Mac/Linux: ARGUS_core
     const exeName = process.platform === 'win32' ? 'ARGUS_core.exe' : 'ARGUS_core';
 
-    // Python is installed in resources/python/ directory
-    // This is set up by electron-builder's extraResources config
+    // Python is installed in resources/python/ARGUS_core/ directory
+    // The PyInstaller build creates a onedir bundle:
+    //   resources/python/ARGUS_core/ARGUS_core (executable)
+    //   resources/python/ARGUS_core/_internal/ (dependencies)
     const resourcesPath = process.resourcesPath;
-    const pythonPath = path.join(resourcesPath, 'python', exeName);
+    const pythonPath = path.join(resourcesPath, 'python', 'ARGUS_core', exeName);
 
     console.log('[ARGUS] Looking for installed Python executable');
     console.log('[ARGUS] Resources path:', resourcesPath);
@@ -63,28 +65,30 @@ function getPythonPath() {
       console.log('[ARGUS] Process architecture:', process.arch);
       console.log('[ARGUS] Install directory:', path.dirname(resourcesPath));
 
-      // Verify the _internal directory exists (contains all DLLs)
-      const internalDir = path.join(resourcesPath, 'python', '_internal');
+      // Verify the _internal directory exists (contains all DLLs on Windows, .so files on Linux)
+      const internalDir = path.join(resourcesPath, 'python', 'ARGUS_core', '_internal');
       if (fs.existsSync(internalDir)) {
-        console.log('[ARGUS] ✓ Python _internal directory found with DLLs');
+        console.log('[ARGUS] ✓ Python _internal directory found');
         const files = fs.readdirSync(internalDir);
         console.log('[ARGUS] ✓ Found', files.length, 'files in _internal directory');
 
-        // Check for critical DLLs
-        const python311dll = path.join(internalDir, 'python311.dll');
-        const vcruntime = path.join(internalDir, 'vcruntime140.dll');
+        // Check for critical files (Windows only)
+        if (process.platform === 'win32') {
+          const python311dll = path.join(internalDir, 'python311.dll');
+          const vcruntime = path.join(internalDir, 'vcruntime140.dll');
 
-        if (fs.existsSync(python311dll)) {
-          const stats = fs.statSync(python311dll);
-          console.log('[ARGUS] ✓ python311.dll found, size:', stats.size, 'bytes');
-        } else {
-          console.error('[ARGUS] ✗ python311.dll NOT FOUND at:', python311dll);
-        }
+          if (fs.existsSync(python311dll)) {
+            const stats = fs.statSync(python311dll);
+            console.log('[ARGUS] ✓ python311.dll found, size:', stats.size, 'bytes');
+          } else {
+            console.error('[ARGUS] ✗ python311.dll NOT FOUND at:', python311dll);
+          }
 
-        if (fs.existsSync(vcruntime)) {
-          console.log('[ARGUS] ✓ vcruntime140.dll found');
-        } else {
-          console.warn('[ARGUS] ✗ vcruntime140.dll NOT FOUND - VC++ Redistributable may be missing');
+          if (fs.existsSync(vcruntime)) {
+            console.log('[ARGUS] ✓ vcruntime140.dll found');
+          } else {
+            console.warn('[ARGUS] ✗ vcruntime140.dll NOT FOUND - VC++ Redistributable may be missing');
+          }
         }
       } else {
         console.warn('[ARGUS] WARNING: Python _internal directory not found');
@@ -338,6 +342,39 @@ function copyDirectory(src, dest) {
 }
 
 /**
+ * Get platform-specific troubleshooting steps for Python verification failures
+ * @returns {string} Platform-specific troubleshooting message
+ */
+function getPlatformTroubleshooting() {
+  if (process.platform === 'win32') {
+    return 'Troubleshooting:\n' +
+      '1. Install Visual C++ Redistributable 2015-2022\n' +
+      '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
+      '2. Check antivirus/firewall settings\n' +
+      '3. Try running as administrator\n' +
+      '4. Reinstall ARGUS to a different location';
+  } else if (process.platform === 'darwin') {
+    return 'Troubleshooting:\n' +
+      '1. Check Security & Privacy settings\n' +
+      '2. Right-click ARGUS and select "Open" to bypass Gatekeeper\n' +
+      '3. Check antivirus/firewall settings\n' +
+      '4. Reinstall ARGUS to your Applications folder';
+  } else {
+    // Linux
+    return 'Troubleshooting:\n' +
+      '1. Make sure the AppImage has execute permissions:\n' +
+      '   chmod +x ARGUS-*.AppImage\n' +
+      '2. Check if FUSE is installed (required for AppImage):\n' +
+      '   Ubuntu/Debian: sudo apt install fuse libfuse2\n' +
+      '   Fedora: sudo dnf install fuse fuse-libs\n' +
+      '3. Try extracting and running directly:\n' +
+      '   ./ARGUS-*.AppImage --appimage-extract\n' +
+      '   ./squashfs-root/AppRun\n' +
+      '4. Check system logs: journalctl -xe';
+  }
+}
+
+/**
  * Verify Python executable works by testing DLL loading
  * @param {string} pythonPath - Path to Python executable
  * @returns {Promise<boolean>} True if verification succeeded
@@ -346,6 +383,7 @@ async function verifyPythonExecutable(pythonPath) {
   return new Promise((resolve) => {
     console.log('[ARGUS] Verifying Python executable...');
     console.log('[ARGUS] Python path:', pythonPath);
+    console.log('[ARGUS] Platform:', process.platform);
 
     // Get the directory containing the Python exe for working directory
     const pythonDir = path.dirname(pythonPath);
@@ -423,12 +461,7 @@ async function verifyPythonExecutable(pythonPath) {
             'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
             'Note: Even if verification fails, ARGUS operations may still work.\n' +
             'Try using the application - if you encounter issues:\n\n' +
-            'Troubleshooting:\n' +
-            '1. Install Visual C++ Redistributable 2015-2022\n' +
-            '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
-            '2. Check antivirus/firewall settings\n' +
-            '3. Try running as administrator\n' +
-            '4. Reinstall ARGUS to a different location\n\n' +
+            getPlatformTroubleshooting() + '\n\n' +
             'Continue to use ARGUS?',
           buttons: ['Continue', 'Exit'],
           defaultId: 0,
@@ -461,12 +494,7 @@ async function verifyPythonExecutable(pythonPath) {
           'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
           'Note: Even if verification fails, ARGUS operations may still work.\n' +
           'Try using the application - if you encounter issues:\n\n' +
-          'Troubleshooting:\n' +
-          '1. Install Visual C++ Redistributable 2015-2022\n' +
-          '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
-          '2. Check antivirus/firewall settings\n' +
-          '3. Try running as administrator\n' +
-          '4. Reinstall ARGUS to a different location\n\n' +
+          getPlatformTroubleshooting() + '\n\n' +
           'Continue to use ARGUS?',
         buttons: ['Continue', 'Exit'],
         defaultId: 0,
@@ -986,5 +1014,35 @@ ipcMain.handle('check-python-dependencies', async () => {
   } catch (error) {
     console.error('Python dependency check failed:', error);
     return { success: false, error: error };
+  }
+});
+
+ipcMain.handle('get-image-data-url', async (event, filePath) => {
+  try {
+    // Read the image file
+    const imageBuffer = fs.readFileSync(filePath);
+
+    // Determine MIME type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    let mimeType = 'image/png'; // default
+
+    if (ext === '.jpg' || ext === '.jpeg') {
+      mimeType = 'image/jpeg';
+    } else if (ext === '.gif') {
+      mimeType = 'image/gif';
+    } else if (ext === '.bmp') {
+      mimeType = 'image/bmp';
+    } else if (ext === '.webp') {
+      mimeType = 'image/webp';
+    }
+
+    // Convert to base64 data URL
+    const base64 = imageBuffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    return dataUrl;
+  } catch (error) {
+    console.error('Failed to convert image to data URL:', error);
+    throw error;
   }
 });

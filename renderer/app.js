@@ -179,17 +179,26 @@ function setupShoreMode() {
 async function handleShoreFile(filePath) {
   state.shoreFilePath = filePath;
   state.shoreFile = filePath.split(/[\\/]/).pop();
-  
+
   document.querySelector('#shore-drop-zone .drop-zone-content').style.display = 'none';
   document.getElementById('shore-file-preview').style.display = 'flex';
   document.getElementById('shore-file-name').textContent = state.shoreFile;
-  document.getElementById('shore-preview-img').src = filePath;
+
+  // Convert file path to data URL for display in renderer
+  try {
+    const dataUrl = await window.argus.getImageDataUrl(filePath);
+    document.getElementById('shore-preview-img').src = dataUrl;
+  } catch (error) {
+    console.error('Failed to load image preview:', error);
+    alert('Failed to load image preview. The file may not be a valid image.');
+  }
+
   document.getElementById('shore-template-section').style.display = 'block';
-  
-  const detected = ['EUCOM', 'LANT', 'EPAC', 'WPAC'].find(t => 
+
+  const detected = ['EUCOM', 'LANT', 'EPAC', 'WPAC'].find(t =>
     state.shoreFile.toUpperCase().includes(t)
   );
-  
+
   if (detected) {
     document.getElementById('shore-template').value = detected;
     state.shoreSelectedTemplate = detected;
@@ -377,7 +386,15 @@ async function decodeVLFMessage() {
       prog.style.display = 'none';
       document.getElementById('sub-result').style.display = 'block';
       document.getElementById('sub-result-path').textContent = `Saved: ${result.data.image_path}`;
-      document.getElementById('sub-preview-img').src = result.data.image_path + '?t=' + Date.now();
+
+      // Convert output image to data URL for display
+      try {
+        const dataUrl = await window.argus.getImageDataUrl(result.data.image_path);
+        document.getElementById('sub-preview-img').src = dataUrl;
+      } catch (error) {
+        console.error('Failed to load decoded image preview:', error);
+      }
+
       alert('Image decoded!');
     } else {
       throw new Error(result.error);
@@ -550,30 +567,39 @@ function prevBuilderStep() {
 async function initializeBuilderCanvas() {
   const canvas = document.getElementById('template-canvas');
   const ctx = canvas.getContext('2d');
-  
+
   const img = new Image();
-  img.src = templateBuilder.imagePath;
-  
+
+  // Convert file path to data URL for display in renderer
+  try {
+    const dataUrl = await window.argus.getImageDataUrl(templateBuilder.imagePath);
+    img.src = dataUrl;
+  } catch (error) {
+    console.error('Failed to load image for template builder:', error);
+    alert('Failed to load image. The file may not be a valid image.');
+    return;
+  }
+
   await new Promise((resolve) => { img.onload = resolve; });
-  
+
   // Make canvas fit smaller screens better - reduced sizes
   const maxWidth = Math.min(500, window.innerWidth - 150);
   const maxHeight = Math.min(350, window.innerHeight - 350);
-  
+
   const scaleX = maxWidth / img.width;
   const scaleY = maxHeight / img.height;
   const scale = Math.min(1, Math.min(scaleX, scaleY));
-  
+
   canvas.width = img.width * scale;
   canvas.height = img.height * scale;
-  
+
   templateBuilder.image = img;
   templateBuilder.canvas = canvas;
   templateBuilder.ctx = ctx;
   templateBuilder.scale = scale;
-  
+
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  
+
   canvas.onmousedown = startCropSelection;
   canvas.onmousemove = updateCropSelection;
   canvas.onmouseup = endCropSelection;

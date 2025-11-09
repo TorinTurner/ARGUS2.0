@@ -19,7 +19,8 @@ contextBridge.exposeInMainWorld('argus', {
 
   // Utilities
   getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
-  checkPythonDependencies: () => ipcRenderer.invoke('check-python-dependencies')
+  checkPythonDependencies: () => ipcRenderer.invoke('check-python-dependencies'),
+  getImageDataUrl: (filePath) => ipcRenderer.invoke('get-image-data-url', filePath)
 });
 
 // Expose electron API for setup dialog
