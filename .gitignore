@@ -10,7 +10,7 @@
 /python-dist
 /ARGUS_core
 /ARGUS_core.exe
-/core
+/prod
 __pycache__
 *.pyc
 *.pyo
