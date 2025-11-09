@@ -1,5 +1,7 @@
 # Building ARGUS Portable Executable
 
+**ARGUS - Advanced Radio-Graphical Undersea System**
+
 This guide explains how to build **truly portable** ARGUS executables for **Windows, macOS, and Linux**.
 
 ## Overview

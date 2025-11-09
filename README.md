@@ -1,8 +1,10 @@
 # ARGUS Modern - Ready to Run Build
 
+**Advanced Radio-Graphical Undersea System (ARGUS)**
+
 **Complete Electron wrapper for ARGUS Weather Image Compression System**
 
-Original compression algorithm by LCDR Sean Peneyra / Aevix LLC  
+Original compression algorithm by LCDR Sean Peneyra / Aevix LLC
 Modern UI wrapper by [Your LLC]
 
 ---
