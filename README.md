@@ -5,7 +5,7 @@
 **Complete Electron wrapper for ARGUS Weather Image Compression System**
 
 Original compression algorithm by LCDR Sean Peneyra / Aevix LLC
-Modern UI wrapper by [Your LLC]
+Modern UI wrapper by Elevated Engineering LLC
 
 ---
 
@@ -805,7 +805,7 @@ webPreferences: {
 
 ### ARGUS 2.0 - Modernization & UI Development
 
-**ITN1 Torin Turner / Elevated Engineering**
+**Torin Turner / Elevated Engineering LLC**
 - Electron application wrapper
 - Modern cross-platform UI design
 - Build system and distribution pipeline
@@ -848,7 +848,7 @@ Per 17 U.S.C. § 105, works created by U.S. Government employees as part of thei
 
 ### ARGUS 2.0 UI Modernization
 
-Copyright © 2025 ITN1 Torin Turner / Elevated Engineering
+Copyright © 2025 Torin Turner / Elevated Engineering LLC
 All rights reserved.
 
 UI components, build system, and integration code developed by Elevated Engineering are proprietary. Contact for licensing inquiries.
@@ -870,7 +870,7 @@ See `package.json` and `python/requirements.txt` for complete dependency lists.
 ### Technical Issues
 
 - **GitHub Issues**: [github.com/TorinTurner/ARGUS2.0/issues](https://github.com/TorinTurner/ARGUS2.0/issues)
-- **Email**: [Contact Torin Turner]
+- **Contact**: Torin Turner
 
 ### Original ARGUS
 
@@ -879,7 +879,7 @@ See `package.json` and `python/requirements.txt` for complete dependency lists.
 
 ### Elevated Engineering
 
-- **UI/Modernization Inquiries**: ITN1 Torin Turner / Elevated Engineering
+- **UI/Modernization Inquiries**: Torin Turner / Elevated Engineering LLC
 - **Enterprise Licensing**: Contact via GitHub
 
 ---
