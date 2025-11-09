@@ -362,7 +362,7 @@ async function verifyPythonExecutable(pythonPath) {
 
     const testProcess = spawn(pythonPath, testArgs, {
       cwd: pythonDir,  // Run in Python's directory so DLLs can be found
-      timeout: 10000,  // 10 second timeout (increased for list-templates)
+      timeout: 30000,  // 30 second timeout (increased for slow systems)
       env: {
         ...process.env,
         // For bundled exe, provide minimal env vars for list-templates to work
@@ -395,31 +395,43 @@ async function verifyPythonExecutable(pythonPath) {
         console.error('[ARGUS] Python path:', pythonPath);
         console.error('[ARGUS] Python exists:', fs.existsSync(pythonPath));
 
+        // If exit code is null, the process was killed (timeout or crash)
+        const wasTimeout = code === null;
+
         const { dialog } = require('electron');
 
         // Build detailed error message
         let errorDetails = '';
-        if (stderr) errorDetails = stderr;
-        else if (stdout) errorDetails = stdout;
-        else errorDetails = `Exit code: ${code}\nNo error output captured`;
+        if (wasTimeout) {
+          errorDetails = 'Verification timed out (process took longer than 30 seconds)\n' +
+            'This might indicate a slow system or DLL loading issues.\n' +
+            'However, Python may still work correctly for actual operations.';
+        } else if (stderr) {
+          errorDetails = stderr;
+        } else if (stdout) {
+          errorDetails = stdout;
+        } else {
+          errorDetails = `Exit code: ${code}\nNo error output captured`;
+        }
 
         const response = dialog.showMessageBoxSync({
-          type: 'warning',
-          title: 'Python Runtime Warning',
-          message: 'Python executable verification failed',
-          detail: 'Error details:\n' + errorDetails + '\n\n' +
+          type: 'info',
+          title: 'Python Verification Warning',
+          message: 'Python verification did not complete successfully',
+          detail: errorDetails + '\n\n' +
             'Python path: ' + pythonPath + '\n' +
             'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
+            'Note: Even if verification fails, ARGUS operations may still work.\n' +
+            'Try using the application - if you encounter issues:\n\n' +
             'Troubleshooting:\n' +
             '1. Install Visual C++ Redistributable 2015-2022\n' +
             '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
             '2. Check antivirus/firewall settings\n' +
             '3. Try running as administrator\n' +
             '4. Reinstall ARGUS to a different location\n\n' +
-            'Click "Continue Anyway" to try using ARGUS despite this warning.\n' +
-            'Some features may not work correctly.',
-          buttons: ['Continue Anyway', 'Exit'],
-          defaultId: 1,
+            'Continue to use ARGUS?',
+          buttons: ['Continue', 'Exit'],
+          defaultId: 0,
           cancelId: 1
         });
 
@@ -440,23 +452,24 @@ async function verifyPythonExecutable(pythonPath) {
 
       const { dialog } = require('electron');
       const response = dialog.showMessageBoxSync({
-        type: 'warning',
-        title: 'Python Runtime Warning',
-        message: 'Failed to start Python executable',
+        type: 'info',
+        title: 'Python Verification Warning',
+        message: 'Could not verify Python executable',
         detail: 'Error: ' + error.message + '\n' +
           'Error code: ' + (error.code || 'unknown') + '\n' +
           'Python path: ' + pythonPath + '\n' +
           'File exists: ' + fs.existsSync(pythonPath) + '\n\n' +
+          'Note: Even if verification fails, ARGUS operations may still work.\n' +
+          'Try using the application - if you encounter issues:\n\n' +
           'Troubleshooting:\n' +
           '1. Install Visual C++ Redistributable 2015-2022\n' +
           '   Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n' +
           '2. Check antivirus/firewall settings\n' +
           '3. Try running as administrator\n' +
           '4. Reinstall ARGUS to a different location\n\n' +
-          'Click "Continue Anyway" to try using ARGUS despite this warning.\n' +
-          'Some features may not work correctly.',
-        buttons: ['Continue Anyway', 'Exit'],
-        defaultId: 1,
+          'Continue to use ARGUS?',
+        buttons: ['Continue', 'Exit'],
+        defaultId: 0,
         cancelId: 1
       });
 
