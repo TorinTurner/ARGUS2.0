@@ -496,8 +496,15 @@ def main():
     """Main CLI entry point"""
     # Ensure templates directory exists (especially important for portable exe)
     # Use environment variable if available (set by main.js), otherwise use default
+    # Note: main.js creates these directories, so this is just a safety check
     user_templates = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
-    os.makedirs(user_templates, exist_ok=True)
+    try:
+        os.makedirs(user_templates, exist_ok=True)
+    except PermissionError:
+        # If we can't create the directory (e.g., in Program Files), that's okay
+        # The Electron app should have already created it in a writable location
+        # Just continue - we'll fail later if the directory truly doesn't exist
+        pass
 
     if len(sys.argv) < 2:
         print(json.dumps({
