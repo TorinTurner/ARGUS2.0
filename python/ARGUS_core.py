@@ -234,6 +234,21 @@ def compress_image(image_path, template_name, dtg, output_path):
         
         # Write message
         msg_data = tc.msgdata_write(dft, 12)
+
+        # Get message template path
+        msg_template_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            '..',
+            'templates',
+            'Message Template.txt'
+        )
+
+        # Create a simple object with msg_template attribute for msgcontent_write
+        class MsgTemplate:
+            def __init__(self, path):
+                self.msg_template = path
+
+        fp = MsgTemplate(msg_template_path)
         msg_intro, msg_outro = tc.msgcontent_write(fp)
         
         with open(output_path, 'w') as file:

@@ -634,6 +634,12 @@ function checkPythonDependencies() {
 // Execute Python command
 function executePython(command, args) {
   return new Promise((resolve, reject) => {
+    // Ensure userSettings is loaded before executing Python
+    if (!userSettings) {
+      reject(new Error('User settings not initialized. Please restart the application.'));
+      return;
+    }
+
     const pythonPath = getPythonPath();
     const appRoot = getAppRootDir();
 
@@ -808,8 +814,7 @@ ipcMain.handle('list-templates', async () => {
 ipcMain.handle('compress-image', async (event, args) => {
   try {
     const outputPath = path.join(
-      getAppRootDir(),
-      'output',
+      userSettings.outputDir,
       `${args.templateName}_${args.dtg}.txt`
     );
     
@@ -830,8 +835,7 @@ ipcMain.handle('compress-image', async (event, args) => {
 ipcMain.handle('decompress-message', async (event, args) => {
   try {
     const outputPath = path.join(
-      getAppRootDir(),
-      'output',
+      userSettings.outputDir,
       `decoded_${Date.now()}.gif`
     );
     
@@ -863,8 +867,7 @@ ipcMain.handle('show-item-in-folder', async (event, filePath) => {
 
   // If no specific file path provided, open the output folder
   if (!filePath) {
-    const outputPath = path.join(getAppRootDir(), 'output');
-    shell.openPath(outputPath);
+    shell.openPath(userSettings.outputDir);
   } else {
     shell.showItemInFolder(filePath);
   }
@@ -894,7 +897,7 @@ ipcMain.handle('create-template', async (event, args) => {
 
 ipcMain.handle('save-temp-message', async (event, text) => {
   try {
-    const tempPath = path.join(getAppRootDir(), 'output', `temp_message_${Date.now()}.txt`);
+    const tempPath = path.join(userSettings.outputDir, `temp_message_${Date.now()}.txt`);
     fs.writeFileSync(tempPath, text);
     return tempPath;
   } catch (error) {
