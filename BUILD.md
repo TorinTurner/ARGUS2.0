@@ -213,6 +213,26 @@ npm run dist-mac-universal
 
 #### 🐧 Linux
 
+##### Quick Build (Recommended - All-in-One Script)
+
+**One-command build:**
+```bash
+chmod +x build-linux.sh
+./build-linux.sh
+```
+
+This comprehensive script will:
+1. ✅ Check all prerequisites (Node.js, Python, npm, pip)
+2. ✅ Install Node.js dependencies automatically
+3. ✅ Install Python dependencies automatically
+4. ✅ Build standalone Python executable with PyInstaller
+5. ✅ Create AppImage with electron-builder
+6. ✅ Provide detailed build summary and usage instructions
+
+**Output:** `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
+
+##### Manual Build (Step-by-Step)
+
 **Build Python executable:**
 ```bash
 bash build-python.sh
@@ -226,6 +246,47 @@ npm run dist-linux
 ```
 
 **Output:** `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
+
+##### Using the AppImage
+
+**Make it executable:**
+```bash
+chmod +x dist/ARGUS-2.0.0.AppImage
+```
+
+**Run the application:**
+```bash
+./dist/ARGUS-2.0.0.AppImage
+```
+
+Or simply double-click the file in your file manager.
+
+##### Distribution
+
+The AppImage is completely self-contained and portable:
+- ✅ Copy to USB drives
+- ✅ Share via network
+- ✅ Run on most modern Linux distributions
+- ✅ **No installation required**
+- ✅ **No dependencies required**
+
+##### Supported Distributions
+
+Tested and working on:
+- Ubuntu 18.04+
+- Debian 10+
+- Fedora 30+
+- openSUSE Leap 15+
+- Arch Linux (current)
+- Linux Mint 19+
+- Pop!_OS 20.04+
+- Elementary OS 5.1+
+- Manjaro (current)
+
+Should work on most modern Linux distributions with:
+- glibc 2.27+ or musl libc
+- GTK 3.0+
+- X11 or Wayland
 
 ---
 
@@ -245,7 +306,13 @@ cd python && pip3 install -r requirements.txt && cd ..
 npm run dist-mac
 ```
 
-**Linux:**
+**Linux (Quick - Recommended):**
+```bash
+chmod +x build-linux.sh
+./build-linux.sh
+```
+
+**Linux (Manual):**
 ```bash
 npm install
 cd python && pip3 install -r requirements.txt && cd ..
