@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# ARGUS 2.0 - Linux Build Script
+# ARGUS 2.0 - Linux x64 Build Script
 # =============================================================================
-# This script builds a portable Linux AppImage for ARGUS 2.0
+# This script builds a portable Linux AppImage for ARGUS 2.0 (x64 architecture)
 # The AppImage will include:
 #   - Electron runtime
 #   - Python interpreter (embedded)
@@ -13,8 +13,9 @@
 #   - Node.js 18+
 #   - Python 3.8-3.11
 #   - npm
+#   - x64 Linux system (64-bit)
 #
-# The final AppImage will run on most modern Linux distributions with
+# The final AppImage will run on most modern x64 Linux distributions with
 # NO dependencies required!
 # =============================================================================
 
@@ -31,7 +32,7 @@ NC='\033[0m' # No Color
 # Header
 echo ""
 echo -e "${CYAN}=============================================${NC}"
-echo -e "${CYAN}  ARGUS 2.0 - Linux Build Script${NC}"
+echo -e "${CYAN}  ARGUS 2.0 - Linux x64 Build Script${NC}"
 echo -e "${CYAN}=============================================${NC}"
 echo ""
 
@@ -179,7 +180,7 @@ echo ""
 # Step 5: Build Electron AppImage
 # =============================================================================
 
-echo -e "${BLUE}[5/6] Building Electron AppImage...${NC}"
+echo -e "${BLUE}[5/6] Building Electron AppImage (x64)...${NC}"
 echo -e "${YELLOW}This may take 3-5 minutes...${NC}"
 echo ""
 
@@ -187,9 +188,9 @@ echo ""
 echo "Cleaning previous Electron builds..."
 rm -rf dist
 
-# Build AppImage
-echo "Running electron-builder..."
-npm run dist -- --linux
+# Build AppImage (x64)
+echo "Running electron-builder for x64 architecture..."
+npm run dist-linux
 
 # Check if build succeeded
 if [ ! -f dist/ARGUS-*.AppImage ]; then
@@ -262,13 +263,13 @@ echo "  ✓ Shared via network"
 echo "  ✓ Run on most modern Linux distributions"
 echo "  ✓ Used without installing ANY dependencies"
 echo ""
-echo "Supported distributions:"
-echo "  • Ubuntu 18.04+"
-echo "  • Debian 10+"
-echo "  • Fedora 30+"
-echo "  • openSUSE Leap 15+"
-echo "  • Arch Linux (current)"
-echo "  • And most other modern Linux distributions"
+echo "Supported distributions (x64/64-bit):"
+echo "  • Ubuntu 18.04+ (x64)"
+echo "  • Debian 10+ (x64)"
+echo "  • Fedora 30+ (x64)"
+echo "  • openSUSE Leap 15+ (x64)"
+echo "  • Arch Linux (current, x64)"
+echo "  • And most other modern x64 Linux distributions"
 echo ""
 echo -e "${GREEN}Happy building! 🚀${NC}"
 echo ""

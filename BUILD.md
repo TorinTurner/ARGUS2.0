@@ -213,7 +213,7 @@ npm run dist-mac-universal
 
 ---
 
-#### 🐧 Linux
+#### 🐧 Linux (x64)
 
 ##### Quick Build (Recommended - All-in-One Script)
 
@@ -228,10 +228,10 @@ This comprehensive script will:
 2. ✅ Install Node.js dependencies automatically
 3. ✅ Install Python dependencies automatically
 4. ✅ Build standalone Python executable with PyInstaller
-5. ✅ Create AppImage with electron-builder
+5. ✅ Create x64 AppImage with electron-builder
 6. ✅ Provide detailed build summary and usage instructions
 
-**Output:** `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
+**Output:** `dist/ARGUS-2.0.0-x64.AppImage` (~150-200MB)
 
 ##### Manual Build (Step-by-Step)
 
@@ -247,18 +247,18 @@ npm run build-python:unix
 npm run dist-linux
 ```
 
-**Output:** `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
+**Output:** `dist/ARGUS-2.0.0-x64.AppImage` (~150-200MB)
 
 ##### Using the AppImage
 
 **Make it executable:**
 ```bash
-chmod +x dist/ARGUS-2.0.0.AppImage
+chmod +x dist/ARGUS-2.0.0-x64.AppImage
 ```
 
 **Run the application:**
 ```bash
-./dist/ARGUS-2.0.0.AppImage
+./dist/ARGUS-2.0.0-x64.AppImage
 ```
 
 Or simply double-click the file in your file manager.
@@ -274,18 +274,19 @@ The AppImage is completely self-contained and portable:
 
 ##### Supported Distributions
 
-Tested and working on:
-- Ubuntu 18.04+
-- Debian 10+
-- Fedora 30+
-- openSUSE Leap 15+
-- Arch Linux (current)
-- Linux Mint 19+
-- Pop!_OS 20.04+
-- Elementary OS 5.1+
-- Manjaro (current)
+Tested and working on (x64 architecture):
+- Ubuntu 18.04+ (x64)
+- Debian 10+ (x64)
+- Fedora 30+ (x64)
+- openSUSE Leap 15+ (x64)
+- Arch Linux (current, x64)
+- Linux Mint 19+ (x64)
+- Pop!_OS 20.04+ (x64)
+- Elementary OS 5.1+ (x64)
+- Manjaro (current, x64)
 
-Should work on most modern Linux distributions with:
+Requirements:
+- x64 (64-bit) architecture
 - glibc 2.27+ or musl libc
 - GTK 3.0+
 - X11 or Wayland

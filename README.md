@@ -198,7 +198,7 @@ npm run dist-mac
 ```
 Output: `dist/ARGUS-2.0.0.dmg` (~150-200MB)
 
-**Linux AppImage:**
+**Linux AppImage (x64):**
 
 *Quick Build (Recommended):*
 ```bash
@@ -210,7 +210,7 @@ This all-in-one script will:
 - ✅ Install Node.js dependencies
 - ✅ Install Python dependencies
 - ✅ Build Python executable
-- ✅ Create AppImage
+- ✅ Create x64 AppImage
 - ✅ Provide detailed output and instructions
 
 *Manual Build:*
@@ -220,7 +220,7 @@ cd python && pip3 install -r requirements.txt && cd ..
 npm run dist-linux
 ```
 
-Output: `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
+Output: `dist/ARGUS-2.0.0-x64.AppImage` (~150-200MB)
 
 **📖 See [BUILD.md](BUILD.md) for detailed build instructions**
 
@@ -246,9 +246,9 @@ Output: `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
 - ✅ Run on macOS 10.13+ (Intel & Apple Silicon)
 - ✅ **No dependencies required**
 
-**Linux AppImage:**
+**Linux AppImage (x64):**
 - ✅ Single executable file
-- ✅ Run on most modern Linux distributions
+- ✅ Run on most modern x64 Linux distributions
 - ✅ No installation required - just make executable and run
 - ✅ **No Python, Node.js, or any dependencies required**
 
