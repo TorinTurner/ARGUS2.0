@@ -19,7 +19,8 @@
     "dist-win-from-mac-arm64": "npm run build-python:win-cross && electron-builder --win --arm64 --config.win.target=nsis",
     "dist-mac": "npm run build-python:unix && electron-builder --mac",
     "dist-mac-universal": "npm run build-python:unix && electron-builder --mac --universal",
-    "dist-linux": "npm run build-python:unix && electron-builder --linux"
+    "dist-linux": "npm run build-python:unix && electron-builder --linux --x64",
+    "dist-linux-x64": "npm run build-python:unix && electron-builder --linux --x64"
   },
   "devDependencies": {
     "electron": "^27.0.0",
@@ -98,8 +99,12 @@
       "deleteAppDataOnUninstall": false
     },
     "linux": {
-      "target": "AppImage",
-      "category": "Utility"
+      "target": {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {}

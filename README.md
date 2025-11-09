@@ -594,6 +594,7 @@ npm run dist-mac
 ```
 Output: `dist/ARGUS-2.0.0.dmg` (~170 MB)
 
+**Linux AppImage (x64):**
 **Universal Binary (Intel + Apple Silicon):**
 ```bash
 npm run dist-mac-universal
@@ -607,6 +608,13 @@ Output: `dist/ARGUS-2.0.0-universal.dmg` (~250 MB)
 chmod +x build-linux.sh
 ./build-linux.sh
 ```
+This all-in-one script will:
+- ✅ Check all prerequisites
+- ✅ Install Node.js dependencies
+- ✅ Install Python dependencies
+- ✅ Build Python executable
+- ✅ Create x64 AppImage
+- ✅ Provide detailed output and instructions
 
 **Manual Build:**
 ```bash
@@ -614,6 +622,7 @@ npm run dist-linux
 ```
 Output: `dist/ARGUS-2.0.0.AppImage` (~160 MB)
 
+Output: `dist/ARGUS-2.0.0-x64.AppImage` (~150-200MB)
 ### What Gets Bundled
 
 The built executables include:
@@ -641,6 +650,11 @@ The built executables include:
 
 ---
 
+**Linux AppImage (x64):**
+- ✅ Single executable file
+- ✅ Run on most modern x64 Linux distributions
+- ✅ No installation required - just make executable and run
+- ✅ **No Python, Node.js, or any dependencies required**
 ## Project Structure
 
 ```
