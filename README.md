@@ -12,7 +12,10 @@ Modern UI wrapper by [Your LLC]
 ### Prerequisites
 - **Node.js 18+** - Download from https://nodejs.org/
 - **Python 3.8+** - Download from https://python.org/
-- **Windows 7, 10, or 11**
+- **Supported Platforms:**
+  - Windows 7, 10, or 11
+  - macOS 10.13+ (Intel & Apple Silicon)
+  - Linux (Ubuntu 18.04+, Debian 10+, Fedora 30+, Arch, etc.)
 
 ### Setup (5 minutes)
 
@@ -22,7 +25,13 @@ Modern UI wrapper by [Your LLC]
 setup.bat
 ```
 
-**Mac/Linux:**
+**Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Linux:**
 ```bash
 chmod +x setup.sh
 ./setup.sh
@@ -188,9 +197,27 @@ npm run dist-mac
 Output: `dist/ARGUS-2.0.0.dmg` (~150-200MB)
 
 **Linux AppImage:**
+
+*Quick Build (Recommended):*
 ```bash
+chmod +x build-linux.sh
+./build-linux.sh
+```
+This all-in-one script will:
+- ✅ Check all prerequisites
+- ✅ Install Node.js dependencies
+- ✅ Install Python dependencies
+- ✅ Build Python executable
+- ✅ Create AppImage
+- ✅ Provide detailed output and instructions
+
+*Manual Build:*
+```bash
+npm install
+cd python && pip3 install -r requirements.txt && cd ..
 npm run dist-linux
 ```
+
 Output: `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
 
 **📖 See [BUILD.md](BUILD.md) for detailed build instructions**
@@ -205,11 +232,22 @@ Output: `dist/ARGUS-2.0.0.AppImage` (~150-200MB)
 
 ### Distribution
 
-This portable .exe can be:
+**Windows portable .exe:**
 - ✅ Copied to USB drive
 - ✅ Burned to CD
 - ✅ Placed on network share
 - ✅ Run on **any Windows 7/10/11 machine**
+- ✅ **No Python, Node.js, or any dependencies required**
+
+**macOS .dmg:**
+- ✅ Drag and drop installation
+- ✅ Run on macOS 10.13+ (Intel & Apple Silicon)
+- ✅ **No dependencies required**
+
+**Linux AppImage:**
+- ✅ Single executable file
+- ✅ Run on most modern Linux distributions
+- ✅ No installation required - just make executable and run
 - ✅ **No Python, Node.js, or any dependencies required**
 
 Just copy and run!
