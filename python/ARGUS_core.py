@@ -234,6 +234,36 @@ def compress_image(image_path, template_name, dtg, output_path):
         
         # Write message
         msg_data = tc.msgdata_write(dft, 12)
+
+        # Get message template path
+        # First try bundled templates (for packaged app), then user templates
+        bundled_templates = os.environ.get('ARGUS_BUNDLED_TEMPLATES')
+        user_templates = os.environ.get('ARGUS_USER_TEMPLATES', './templates')
+
+        msg_template_path = None
+
+        # Try bundled templates first
+        if bundled_templates:
+            bundled_path = os.path.join(bundled_templates, 'Message Template.txt')
+            if os.path.exists(bundled_path):
+                msg_template_path = bundled_path
+
+        # Fall back to user templates
+        if not msg_template_path:
+            user_path = os.path.join(user_templates, 'Message Template.txt')
+            if os.path.exists(user_path):
+                msg_template_path = user_path
+
+        # Last resort: relative path (development mode)
+        if not msg_template_path:
+            msg_template_path = os.path.join('./templates', 'Message Template.txt')
+
+        # Create a simple object with msg_template attribute for msgcontent_write
+        class MsgTemplate:
+            def __init__(self, path):
+                self.msg_template = path
+
+        fp = MsgTemplate(msg_template_path)
         msg_intro, msg_outro = tc.msgcontent_write(fp)
         
         with open(output_path, 'w') as file:
