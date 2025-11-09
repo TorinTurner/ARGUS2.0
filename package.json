@@ -1,7 +1,7 @@
 {
   "name": "argus",
   "version": "2.0.0",
-  "description": "ARGUS Weather Image Compression System",
+  "description": "ARGUS - Advanced Radio-Graphical Undersea System - Weather Image Compression System",
   "main": "main.js",
   "author": "LCDR Sean Peneyra / Aevix LLC",
   "scripts": {

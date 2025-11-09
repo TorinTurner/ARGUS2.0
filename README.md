@@ -1,8 +1,11 @@
 # ARGUS 2.0 - Advanced Weather Image Compression System
 
-**A Revolutionary DFT-Based Image Compression System for Low-Bandwidth Naval Communications**
+**Advanced Radio-Graphical Undersea System (ARGUS)**
 
-ARGUS (Advanced Reconstruction of Graphical Update System) is a specialized image compression system designed to transmit critical weather information over extremely low-bandwidth channels such as Very Low Frequency (VLF) radio. By leveraging advanced mathematical transforms and intelligent encoding, ARGUS achieves compression ratios exceeding 1000:1 while preserving the essential meteorological information required for tactical decision-making.
+**Complete Electron wrapper for ARGUS Weather Image Compression System**
+
+Original compression algorithm by LCDR Sean Peneyra / Aevix LLC
+Modern UI wrapper by [Your LLC]
 
 ---
 
