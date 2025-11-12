@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>VLF Message Compressor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo">V</div>
+        <div class="header-text">
+          <h1>VLF Message Compressor</h1>
+          <span class="subtitle">Brotli + Base32 Text Compression</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="help-btn" title="Help">?</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-content">
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button id="compress-btn" class="mode-btn active">
+          Compress Message
+        </button>
+        <button id="decompress-btn" class="mode-btn">
+          Decompress Message
+        </button>
+      </div>
+
+      <!-- COMPRESS MODE -->
+      <div id="compress-mode" class="mode-content active">
+        <div class="content-section">
+          <h2>Compress Text Message</h2>
+
+          <!-- File or Text Input -->
+          <div class="input-method-toggle">
+            <button id="comp-file-mode-btn" class="toggle-btn active">Load from File</button>
+            <button id="comp-text-mode-btn" class="toggle-btn">Enter Text</button>
+          </div>
+
+          <!-- File Input Mode -->
+          <div id="comp-file-input" class="input-mode active">
+            <div id="comp-drop-zone" class="drop-zone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">FILE</div>
+                <p class="drop-text">Drag & drop text file here</p>
+                <p class="drop-subtext">or</p>
+                <button id="comp-browse-btn" class="browse-btn">Browse for .txt file</button>
+              </div>
+              <div id="comp-file-preview" class="file-preview" style="display: none;">
+                <div class="file-info">
+                  <div id="comp-file-name" class="file-name"></div>
+                  <div id="comp-file-size" class="file-size"></div>
+                  <button id="comp-remove-btn" class="remove-btn">✕ Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Input Mode -->
+          <div id="comp-text-input" class="input-mode">
+            <textarea id="comp-message-text" class="message-textarea"
+              placeholder="Enter or paste your message here...&#10;&#10;The text will be compressed and encoded."
+              rows="12"></textarea>
+            <div class="char-count">
+              Characters: <span id="comp-char-count">0</span>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div class="action-panel">
+            <button id="comp-process-btn" class="primary-btn" disabled>
+              Compress & Encode Message
+            </button>
+          </div>
+
+          <!-- Progress -->
+          <div id="comp-progress" class="progress-container" style="display: none;">
+            <div class="progress-spinner"></div>
+            <div class="progress-text">Compressing...</div>
+          </div>
+
+          <!-- Result -->
+          <div id="comp-result" class="result-panel" style="display: none;">
+            <div class="result-success">
+              <div class="result-icon">✓</div>
+              <div class="result-text">
+                <h3>Message Compressed Successfully!</h3>
+                <div class="stats">
+                  <div class="stat">
+                    <span class="stat-label">Original Size:</span>
+                    <span class="stat-value" id="comp-original-size">-</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">Compressed Size:</span>
+                    <span class="stat-value" id="comp-compressed-size">-</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">Compression Ratio:</span>
+                    <span class="stat-value" id="comp-ratio">-</span>
+                  </div>
+                </div>
+                <div class="result-actions">
+                  <button id="comp-save-btn" class="secondary-btn">Save to File</button>
+                  <button id="comp-copy-btn" class="secondary-btn">Copy to Clipboard</button>
+                  <button id="comp-open-folder-btn" class="secondary-btn">Open Folder</button>
+                </div>
+                <div class="result-preview">
+                  <h4>Compressed Message Preview:</h4>
+                  <textarea id="comp-result-text" class="result-textarea" readonly></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DECOMPRESS MODE -->
+      <div id="decompress-mode" class="mode-content">
+        <div class="content-section">
+          <h2>Decompress Encoded Message</h2>
+
+          <!-- File or Text Input -->
+          <div class="input-method-toggle">
+            <button id="decomp-file-mode-btn" class="toggle-btn active">Load from File</button>
+            <button id="decomp-text-mode-btn" class="toggle-btn">Paste Message</button>
+          </div>
+
+          <!-- File Input Mode -->
+          <div id="decomp-file-input" class="input-mode active">
+            <div id="decomp-drop-zone" class="drop-zone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">FILE</div>
+                <p class="drop-text">Drag & drop encoded message file here</p>
+                <p class="drop-subtext">or</p>
+                <button id="decomp-browse-btn" class="browse-btn">Browse for .txt file</button>
+              </div>
+              <div id="decomp-file-preview" class="file-preview" style="display: none;">
+                <div class="file-info">
+                  <div id="decomp-file-name" class="file-name"></div>
+                  <div id="decomp-file-size" class="file-size"></div>
+                  <button id="decomp-remove-btn" class="remove-btn">✕ Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Input Mode -->
+          <div id="decomp-text-input" class="input-mode">
+            <textarea id="decomp-message-text" class="message-textarea"
+              placeholder="Paste the Base32 encoded message here..."
+              rows="12"></textarea>
+            <div class="char-count">
+              Characters: <span id="decomp-char-count">0</span>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div class="action-panel">
+            <button id="decomp-process-btn" class="primary-btn" disabled>
+              Decode & Decompress Message
+            </button>
+          </div>
+
+          <!-- Progress -->
+          <div id="decomp-progress" class="progress-container" style="display: none;">
+            <div class="progress-spinner"></div>
+            <div class="progress-text">Decompressing...</div>
+          </div>
+
+          <!-- Result -->
+          <div id="decomp-result" class="result-panel" style="display: none;">
+            <div class="result-success">
+              <div class="result-icon">✓</div>
+              <div class="result-text">
+                <h3>Message Decompressed Successfully!</h3>
+                <div class="result-actions">
+                  <button id="decomp-save-btn" class="secondary-btn">Save to File</button>
+                  <button id="decomp-copy-btn" class="secondary-btn">Copy to Clipboard</button>
+                  <button id="decomp-open-folder-btn" class="secondary-btn">Open Folder</button>
+                </div>
+                <div class="result-preview">
+                  <h4>Decompressed Message:</h4>
+                  <textarea id="decomp-result-text" class="result-textarea" readonly></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error -->
+          <div id="decomp-error" class="error-panel" style="display: none;">
+            <div class="error-icon">✕</div>
+            <div class="error-text">
+              <h3>Decompression Failed</h3>
+              <p id="decomp-error-message"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>VLF Message Compressor Help</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3>Compress Mode</h3>
+        <p>Compress text messages for efficient transmission:</p>
+        <ol>
+          <li>Load a text file or enter/paste your message</li>
+          <li>Click "Compress & Encode Message"</li>
+          <li>The message will be compressed using Brotli and encoded with Base32</li>
+          <li>Save the result or copy it to clipboard for transmission</li>
+        </ol>
+
+        <h3>Decompress Mode</h3>
+        <p>Decompress received encoded messages:</p>
+        <ol>
+          <li>Load a file or paste the encoded message</li>
+          <li>Click "Decode & Decompress Message"</li>
+          <li>The original message will be recovered</li>
+          <li>Save the result or copy it to clipboard</li>
+        </ol>
+
+        <h3>Technical Details</h3>
+        <p><strong>Compression:</strong> Brotli algorithm provides excellent compression for text</p>
+        <p><strong>Encoding:</strong> Base32 encoding ensures the output is ASCII-safe and transmission-friendly</p>
+        <p><strong>Character Compatibility:</strong> The system automatically handles special characters in Base32 encoding</p>
+
+        <h3>Tips</h3>
+        <p>• Longer messages typically achieve better compression ratios</p>
+        <p>• The encoded output is safe for transmission over text-based channels</p>
+        <p>• All files are processed locally - nothing is sent to external servers</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

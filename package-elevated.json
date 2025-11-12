@@ -1,0 +1,120 @@
+{
+  "name": "elevated",
+  "version": "2.0.0",
+  "description": "ELEVATED - Unified Communications Platform (ARGUS 2.0 + VLF Message Compressor)",
+  "main": "elevated-main.js",
+  "author": "ITN1 Torin Turner / Elevated Engineering LLC",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build-python:win": "build-python.bat && build-vlf.bat",
+    "build-python:unix": "bash build-python.sh && bash build-vlf.sh",
+    "build-python:win-cross": "bash build-python-win.sh && bash build-vlf-win.sh",
+    "dist-win": "npm run build-python:win && electron-builder --win --config.win.target=nsis",
+    "dist-win-x64": "npm run build-python:win && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-arm64": "npm run build-python:win && electron-builder --win --arm64 --config.win.target=nsis",
+    "dist-win-from-mac": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-from-mac-x64": "npm run build-python:win-cross && electron-builder --win --x64 --config.win.target=nsis",
+    "dist-win-from-mac-arm64": "npm run build-python:win-cross && electron-builder --win --arm64 --config.win.target=nsis",
+    "dist-mac": "npm run build-python:unix && electron-builder --mac",
+    "dist-mac-universal": "npm run build-python:unix && electron-builder --mac --universal",
+    "dist-linux": "npm run build-python:unix && electron-builder --linux --x64",
+    "dist-linux-x64": "npm run build-python:unix && electron-builder --linux --x64"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.elevated.platform",
+    "productName": "ELEVATED",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "elevated-main.js",
+      "elevated-preload.js",
+      "settings.js",
+      "elevated-renderer/**/*",
+      "argus/**/*",
+      "vlf/**/*",
+      "python-dist/**/*",
+      "templates/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "python-dist/**/*",
+      "templates/**/*",
+      "argus/**/*",
+      "vlf/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-dist/ARGUS_core",
+        "to": "python",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "python-dist/VLF_core",
+        "to": "python",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker",
+      "signingHashAlgorithms": ["sha256"],
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "differentialPackage": false,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "installerIcon": null,
+      "uninstallerIcon": null,
+      "license": null,
+      "include": "build/installer.nsh",
+      "warningsAsErrors": false,
+      "unicode": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "target": {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {}
+}

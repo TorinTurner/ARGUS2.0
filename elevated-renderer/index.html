@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>ELEVATED - Unified Communications Platform</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="logo-section">
+          <div class="logo-icon">E</div>
+          <div class="header-text">
+            <h1>ELEVATED</h1>
+            <span class="subtitle">Unified Communications Platform</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-content">
+      <div class="welcome-section">
+        <h2>Select Application</h2>
+        <p class="description">Choose the tool you need to use</p>
+      </div>
+
+      <div class="apps-grid">
+        <!-- ARGUS Card -->
+        <div class="app-card" id="argus-card">
+          <div class="app-icon argus-icon">A</div>
+          <h3>ARGUS 2.0</h3>
+          <p class="app-description">Advanced Radio-Graphical Undersea System</p>
+          <p class="app-details">Compress and decompress weather images for VLF transmission using DFT compression (1:4500 ratio)</p>
+          <button class="launch-btn" id="launch-argus">Launch ARGUS</button>
+        </div>
+
+        <!-- VLF Compressor Card -->
+        <div class="app-card" id="vlf-card">
+          <div class="app-icon vlf-icon">V</div>
+          <h3>VLF Message Compressor</h3>
+          <p class="app-description">Text Message Compression Tool</p>
+          <p class="app-details">Compress and decompress text messages using Brotli + Base32 encoding for efficient transmission</p>
+          <button class="launch-btn" id="launch-vlf">Launch VLF Compressor</button>
+        </div>
+      </div>
+
+      <!-- Footer Info -->
+      <footer class="app-footer">
+        <p>Version 2.0 | Elevated Engineering LLC</p>
+        <button class="info-btn" id="about-btn">About</button>
+      </footer>
+    </main>
+  </div>
+
+  <!-- About Modal -->
+  <div id="about-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>About ELEVATED</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="about-section">
+          <h3>ELEVATED Platform</h3>
+          <p><strong>Version:</strong> 2.0</p>
+          <p><strong>Developer:</strong> ITN1 Torin Turner / Elevated Engineering LLC</p>
+        </div>
+        <div class="about-section">
+          <h3>Included Applications</h3>
+          <p><strong>ARGUS 2.0</strong></p>
+          <p>Original Algorithm & Design: LCDR Sean Peneyra / Aevix LLC</p>
+          <p>Weather image compression system using Discrete Fourier Transform</p>
+          <br>
+          <p><strong>VLF Message Compressor</strong></p>
+          <p>Text message compression using Brotli algorithm and Base32 encoding</p>
+        </div>
+        <div class="about-section">
+          <h3>Technical Details</h3>
+          <p>• All dependencies included for full portability</p>
+          <p>• No external installations required</p>
+          <p>• Cross-platform support</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
